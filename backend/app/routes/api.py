@@ -49,6 +49,19 @@ NOT_IMPLEMENTED_MESSAGE = (
     "This API route is declared but its business logic is not implemented yet."
 )
 
+# One 422 code covers both ways a company search can be unusable, so the message
+# names every satisfied-condition, not just the first. A short ``q`` and a
+# missing filter fail for the same user-facing reason: there is nothing specific
+# enough to search on. The message states the requirement rather than the
+# parameter names, so it still reads correctly when ``q`` was supplied and
+# rejected for being too short.
+MIN_COMPANY_SEARCH_LENGTH = 2
+INVALID_SEARCH_MESSAGE = (
+    "A company search needs at least one usable filter: q with at least "
+    f"{MIN_COMPANY_SEARCH_LENGTH} characters after trimming, a status label, or "
+    "require_linked_award=true."
+)
+
 
 def not_implemented() -> JSONResponse:
     """Return the shared response for every declared business route."""
@@ -145,7 +158,7 @@ COMPANY_SEARCH_ERRORS = {
     422: {
         "model": DomainErrorResponse,
         "description": (
-            "`invalid_search`: provide at least one company-search filter. "
+            "`invalid_search`: no usable search filter was supplied. "
             "`unknown_status`: a supplied status label is not in the source registry."
         ),
         "content": {
@@ -156,10 +169,7 @@ COMPANY_SEARCH_ERRORS = {
                             "value": {
                                 "detail": {
                                     "code": "invalid_search",
-                                    "message": (
-                                        "Provide at least one of q, status, or "
-                                        "require_linked_award=true."
-                                    ),
+                                    "message": INVALID_SEARCH_MESSAGE,
                                 }
                             }
                         }
@@ -199,7 +209,19 @@ OffsetQuery = Annotated[int, Query(ge=0, description="Nonnegative page offset.")
 StartDateQuery = Annotated[date | None, Query(description="Optional inclusive start date.")]
 EndDateQuery = Annotated[date | None, Query(description="Optional inclusive end date.")]
 SearchQuery = Annotated[
-    str | None, Query(description="Trimmed literal search text. At least two characters.")
+    str | None, Query(description="Trimmed literal search text.")
+]
+# Company search applies the minimum-length rule, so it documents that rule on
+# its own parameter. The agency selector does not apply one, which is why the
+# two routes cannot share a single description.
+CompanySearchQuery = Annotated[
+    str | None,
+    Query(
+        description=(
+            f"Trimmed literal search text. At least {MIN_COMPANY_SEARCH_LENGTH} "
+            "characters when supplied."
+        )
+    ),
 ]
 StatusQuery = Annotated[
     list[str] | None,
@@ -236,28 +258,69 @@ def require_date_range(
         )
 
 
-def require_company_search_filter(
-    q: SearchQuery = None,
-    status_filter: StatusQuery = None,
-    require_linked_award: RequireLinkedAwardQuery = False,
-) -> None:
-    """Reject an unfiltered company search before it can scan the full dataset.
+def validate_company_search_text(q: str | None) -> str | None:
+    """Trim the company search text and apply the minimum-length rule.
 
-    At least one of ``q``, ``status``, or ``require_linked_award=true`` is
-    required.
+    The trimmed value is what the route body passes on, so neither adapter has
+    to decide for itself how surrounding whitespace is treated. That keeps the
+    MariaDB and MongoDB search behaviour comparable.
+
+    A UEN is 9 or 10 characters in the source data, so the contract's exact-UEN
+    exception cannot make a shorter query valid and the minimum applies to every
+    supplied ``q``.
     """
 
-    if not q and not status_filter and not require_linked_award:
+    if q is None:
+        return None
+
+    trimmed = q.strip()
+
+    # Blank text is not a filter. Returning ``None`` lets the filter check below
+    # report it as a missing filter rather than as a length failure.
+    if not trimmed:
+        return None
+
+    if len(trimmed) < MIN_COMPANY_SEARCH_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "code": "invalid_search",
-                "message": (
-                    "Provide at least one of q, status, or "
-                    "require_linked_award=true."
-                ),
-            },
+            detail={"code": "invalid_search", "message": INVALID_SEARCH_MESSAGE},
         )
+
+    return trimmed
+
+
+def require_company_search_filter(
+    q: CompanySearchQuery = None,
+    status_filter: StatusQuery = None,
+    require_linked_award: RequireLinkedAwardQuery = False,
+) -> str | None:
+    """Validate a company search and return its trimmed search text.
+
+    ``q`` is declared here with the company annotation rather than in the route
+    signature. FastAPI merges the query parameters a route and its dependencies
+    declare under the same name and keeps the dependency's copy, so the
+    annotation that documents the minimum-length rule has to sit on this
+    parameter for the generated OpenAPI document to describe the rule the check
+    actually applies.
+
+    The minimum-length rule is applied whenever ``q`` is supplied, including
+    when another filter is present, because a one-character substring still
+    makes a poor search.
+
+    At least one of a usable ``q``, ``status``, or ``require_linked_award=true``
+    is required. Returning the trimmed text means the route body searches on the
+    same value the check approved.
+    """
+
+    search_text = validate_company_search_text(q)
+
+    if not search_text and not status_filter and not require_linked_award:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "invalid_search", "message": INVALID_SEARCH_MESSAGE},
+        )
+
+    return search_text
 
 
 # --------------------------------------------------------------------------
@@ -285,14 +348,18 @@ def list_company_statuses(database: DatabaseQuery) -> CompanyStatusesResponse:
 )
 def search_companies(
     database: DatabaseQuery,
-    q: SearchQuery = None,
     status_filter: StatusQuery = None,
     require_linked_award: RequireLinkedAwardQuery = False,
     limit: LimitQuery = 25,
     offset: OffsetQuery = 0,
-    _filters: None = Depends(require_company_search_filter),
+    search_text: str | None = Depends(require_company_search_filter),
 ) -> CompaniesResponse:
-    """Search companies by exact UEN or literal case-insensitive name text."""
+    """Search companies by exact UEN or literal case-insensitive name text.
+
+    ``q`` is accepted through ``require_company_search_filter``, which validates
+    it and hands back ``search_text``, its trimmed form. Phase 4 searches on that
+    value rather than on the raw parameter.
+    """
 
     return not_implemented()
 
@@ -408,7 +475,6 @@ def list_industries(
     summary="Compare award totals across SSIC branches",
     responses={
         404: INDUSTRY_NOT_FOUND,
-        409: SUPPLIER_MATCHING_NOT_READY,
         422: INDUSTRY_HAS_NO_CHILDREN,
         503: DATABASE_UNAVAILABLE,
         **NOT_IMPLEMENTED,
@@ -421,7 +487,13 @@ def read_industry_awards(
     end_date: EndDateQuery = None,
     _range: None = Depends(require_date_range),
 ) -> IndustryAwardsResponse:
-    """Return award totals per immediate child branch of the SSIC hierarchy."""
+    """Return award totals per immediate child branch of the SSIC hierarchy.
+
+    Incomplete supplier matching affects coverage, not availability. The
+    response reports how many award rows were excluded because the supplier has
+    no accepted company link, so partial matching produces smaller totals rather
+    than a blocked request.
+    """
 
     return not_implemented()
 

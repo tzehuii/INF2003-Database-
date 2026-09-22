@@ -1,0 +1,19 @@
+# Installed packages and build output.
+node_modules
+dist
+dist-ssr
+
+# Local logs and editor files.
+logs
+*.log
+npm-debug.log*
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
