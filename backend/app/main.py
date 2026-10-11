@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from .config import load_settings
 from .databases import close_mongodb_client, create_mongodb_client
 from .routes.api import router as api_router
+from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
 
 
@@ -38,3 +39,4 @@ app = FastAPI(title="INF2003 Business and Tender Analytics API", lifespan=lifesp
 
 app.include_router(health_router)
 app.include_router(api_router)
+app.include_router(business_activities_router)

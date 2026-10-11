@@ -1810,3 +1810,99 @@ select:focus-visible {
     flex-direction: column;
   }
 }
+
+/* ========================================================================
+   Business Activities (System view)
+   ======================================================================== */
+
+.activity-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.activity-tree .activity-tree {
+  border-left: 1px solid var(--colour-border);
+  margin-left: 11px;
+  padding-left: 14px;
+}
+
+.tree-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-height: 38px;
+  padding: 3px 4px;
+}
+
+.tree-row:hover {
+  background: var(--colour-surface-soft);
+  border-radius: 8px;
+}
+
+.tree-toggle,
+.tree-toggle-spacer {
+  flex: 0 0 24px;
+  height: 24px;
+  width: 24px;
+}
+
+.tree-toggle {
+  background: none;
+  border: 1px solid var(--colour-border);
+  border-radius: 6px;
+  color: var(--colour-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+
+.tree-toggle:hover {
+  background: var(--colour-primary-soft);
+  color: var(--colour-primary-dark);
+}
+
+.tree-row .activity-code {
+  flex: 0 0 auto;
+  min-width: 52px;
+}
+
+.tree-link {
+  color: var(--colour-text);
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.tree-link:hover {
+  color: var(--colour-primary);
+  text-decoration: underline;
+}
+
+.tree-status {
+  color: var(--colour-text-muted);
+  font-size: 13.5px;
+  padding: 8px 4px;
+}
+
+.form-fields {
+  margin-top: 18px;
+}
+
+.confirm-dialog {
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
+  color: var(--colour-text);
+  max-width: 520px;
+  padding: 24px;
+  width: calc(100% - 40px);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(29, 41, 57, 0.4);
+}
+
+.confirm-dialog .detail-list {
+  margin: 14px 0;
+}

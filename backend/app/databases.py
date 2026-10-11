@@ -5,7 +5,9 @@ Two database operations are performed here.
 - MariaDB: one direct connection running ``SELECT 1``.
 - MongoDB: the ``ping`` command against the selected application database.
 
-No schema setup, migration, import, collection query, or data write happens here.
+``connect_mariadb`` also opens a plain connection for the Business Activities
+routes. No schema setup, migration, import, collection query, or data write
+happens in this module.
 """
 
 from __future__ import annotations
@@ -38,6 +40,23 @@ def create_mongodb_client(settings: Settings) -> MongoClient:
         settings.mongodb_uri,
         serverSelectionTimeoutMS=CONNECTION_TIMEOUT_MS,
         connectTimeoutMS=CONNECTION_TIMEOUT_MS,
+    )
+
+
+def connect_mariadb(settings: Settings):
+    """Open one MariaDB connection using the configured values.
+
+    The caller closes it. Autocommit stays at the connector default so a caller
+    that needs a transaction turns it off explicitly.
+    """
+
+    return mariadb.connect(
+        host=settings.mariadb_host,
+        port=settings.mariadb_port,
+        user=settings.mariadb_user,
+        password=settings.mariadb_password,
+        database=settings.mariadb_database,
+        connect_timeout=CONNECTION_TIMEOUT_SECONDS,
     )
 
 

@@ -25,6 +25,11 @@ export const API_ROUTES = {
   industryAwards: '/api/industry-awards',
   savedLists: '/api/saved-lists',
   savedListDetail: (listId: string) => `/api/saved-lists/${encodeURIComponent(listId)}`,
+  activities: '/api/system/business-activities',
+  activityChildren: '/api/system/business-activities/children',
+  activitySearch: '/api/system/business-activities/search',
+  activityNextCode: '/api/system/business-activities/next-code',
+  activity: (code: string) => `/api/system/business-activities/${encodeURIComponent(code)}`,
 } as const
 
 /**
@@ -451,6 +456,26 @@ export type IndustryAwardsData = {
   summary: IndustryAwardsSummary
   items: IndustryAwardChild[]
 }
+
+/** One Business Activities catalogue entry, as it appears in a path. */
+export type ActivityNode = { code: string; title: string; level: string }
+
+export type ActivityChild = ActivityNode & { has_children: boolean }
+
+export type ActivitySearchItem = ActivityNode & { parent_path: ActivityNode[] }
+
+/** One entry with its ancestors (Section first) and immediate children. */
+export type ActivityDetail = ActivityNode & {
+  parent: ActivityNode | null
+  path: ActivityNode[]
+  /** Level of a new child, or null for a Sub-class. */
+  child_level: string | null
+  children: ActivityChild[]
+}
+
+export type ActivityChildrenData = { items: ActivityChild[] }
+export type ActivitySearchData = { items: ActivitySearchItem[]; has_more: boolean }
+export type ActivityNextCode = { code: string; level: string }
 
 export type ReviewStatus = 'to_check' | 'reviewed'
 

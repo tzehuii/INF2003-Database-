@@ -480,6 +480,92 @@ class SavedListEntryResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# Business Activities (System view)
+# --------------------------------------------------------------------------
+
+
+class ActivityNode(BaseModel):
+    """One catalogue entry, as it appears in a path or parent reference."""
+
+    code: str
+    title: str
+    level: str
+
+
+class ActivityChild(ActivityNode):
+    """An entry in a tree level."""
+
+    has_children: bool
+
+
+class ActivitySearchItem(ActivityNode):
+    """A search match with its ancestors, Section first."""
+
+    parent_path: list[ActivityNode] = Field(default_factory=list)
+
+
+class ActivityDetail(ActivityNode):
+    """One entry with its place in the hierarchy and its immediate children."""
+
+    parent: ActivityNode | None = None
+    path: list[ActivityNode] = Field(default_factory=list)
+    child_level: str | None = Field(
+        default=None, description="Level of a new child, or null for a Sub-class."
+    )
+    children: list[ActivityChild] = Field(default_factory=list)
+
+
+class ActivityChildrenData(BaseModel):
+    items: list[ActivityChild] = Field(default_factory=list)
+
+
+class ActivitySearchData(BaseModel):
+    items: list[ActivitySearchItem] = Field(default_factory=list)
+    has_more: bool = Field(description="Whether more matches exist than were returned.")
+
+
+class ActivityNextCode(BaseModel):
+    code: str = Field(description="An unused, valid code for the new entry.")
+    level: str = Field(description="Level the new entry would have.")
+
+
+class ActivityCreate(BaseModel):
+    """Request body for creating one catalogue entry."""
+
+    title: str
+    code: str
+    parent_code: str | None = Field(
+        default=None, description="Parent code, or null to create a Section."
+    )
+
+
+class ActivityRename(BaseModel):
+    """Request body for changing an entry's title."""
+
+    title: str
+
+
+class ActivityChildrenResponse(BaseModel):
+    data: ActivityChildrenData
+    meta: ApiMeta
+
+
+class ActivitySearchResponse(BaseModel):
+    data: ActivitySearchData
+    meta: ApiMeta
+
+
+class ActivityDetailResponse(BaseModel):
+    data: ActivityDetail
+    meta: ApiMeta
+
+
+class ActivityNextCodeResponse(BaseModel):
+    data: ActivityNextCode
+    meta: ApiMeta
+
+
+# --------------------------------------------------------------------------
 # Domain error shape
 # --------------------------------------------------------------------------
 
