@@ -7,6 +7,7 @@
  */
 
 import DatabaseSelector from './DatabaseSelector'
+import ViewSelector from './ViewSelector'
 
 export default function AppHeader() {
   return (
@@ -17,7 +18,10 @@ export default function AppHeader() {
           Singapore company, industry, and government procurement data
         </p>
       </div>
-      <DatabaseSelector />
+      <div className="app-header-controls">
+        <ViewSelector />
+        <DatabaseSelector />
+      </div>
     </header>
   )
 }

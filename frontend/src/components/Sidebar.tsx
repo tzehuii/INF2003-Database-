@@ -4,7 +4,8 @@
  * Four navigation items and no Dashboard item. The active page is highlighted.
  */
 
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { SYSTEM_BASE_PATH, SYSTEM_SECTIONS, isSystemPath } from '../systemSections'
 
 function NavigationIcon({ name }: { name: 'companies' | 'agency' | 'industry' | 'saved' }) {
   const common = {
@@ -54,9 +55,36 @@ const NAVIGATION_ITEMS = [
   { to: '/saved-lists', label: 'Saved Lists', icon: 'saved' },
 ] as const
 
-export default function Sidebar() {
+function SystemIcon() {
   return (
-    <nav className="sidebar" aria-label="Main navigation">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.8}
+    >
+      <ellipse cx="12" cy="6" rx="7" ry="3" />
+      <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+    </svg>
+  )
+}
+
+export default function Sidebar() {
+  const { pathname } = useLocation()
+  const inSystem = isSystemPath(pathname)
+  const items = inSystem
+    ? SYSTEM_SECTIONS.map((section) => ({
+        to: `${SYSTEM_BASE_PATH}/${section.slug}`,
+        label: section.label,
+        icon: null,
+      }))
+    : NAVIGATION_ITEMS
+
+  return (
+    <nav className="sidebar" aria-label={inSystem ? 'System navigation' : 'Main navigation'}>
       <div className="sidebar-brand">
         <span className="sidebar-brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -69,9 +97,9 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <p className="sidebar-label">Workspace</p>
+      <p className="sidebar-label">{inSystem ? 'System' : 'Workspace'}</p>
       <ul className="sidebar-list">
-        {NAVIGATION_ITEMS.map((item) => (
+        {items.map((item) => (
           <li key={item.to}>
             <NavLink
               to={item.to}
@@ -79,7 +107,7 @@ export default function Sidebar() {
                 isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'
               }
             >
-              <NavigationIcon name={item.icon} />
+              {item.icon ? <NavigationIcon name={item.icon} /> : <SystemIcon />}
               <span>{item.label}</span>
             </NavLink>
           </li>

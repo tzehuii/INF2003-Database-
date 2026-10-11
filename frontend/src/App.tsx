@@ -15,6 +15,8 @@ import CompaniesPage from './pages/CompaniesPage'
 import CompanyDetailPage from './pages/CompanyDetailPage'
 import IndustryAwardsPage from './pages/IndustryAwardsPage'
 import SavedListsPage from './pages/SavedListsPage'
+import SystemSectionPage from './pages/SystemSectionPage'
+import { DEFAULT_SYSTEM_PATH } from './systemSections'
 
 function AppLayout() {
   return (
@@ -30,6 +32,8 @@ function AppLayout() {
             <Route path="/agency-awards" element={<AgencyAwardsPage />} />
             <Route path="/industry-awards" element={<IndustryAwardsPage />} />
             <Route path="/saved-lists" element={<SavedListsPage />} />
+            <Route path="/system" element={<Navigate to={DEFAULT_SYSTEM_PATH} replace />} />
+            <Route path="/system/:section" element={<SystemSectionPage />} />
             <Route path="*" element={<Navigate to="/companies" replace />} />
           </Routes>
         </main>

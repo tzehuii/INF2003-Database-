@@ -1098,6 +1098,13 @@ select:focus-visible {
   font-size: 12px;
 }
 
+.app-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
 .database-selector {
   gap: 8px;
 }
