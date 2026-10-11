@@ -220,7 +220,7 @@ def _used_codes(cur, candidates: list[str]) -> set[str]:
     return {row[0] for row in cur.fetchall()}
 
 
-def next_code(conn, parent_code: str | None) -> dict:
+def next_code(conn, parent_code: str | None, after: str | None = None) -> dict:
     """Suggest an unused code for a new child of ``parent_code``."""
 
     cur = conn.cursor()
@@ -232,7 +232,7 @@ def next_code(conn, parent_code: str | None) -> dict:
                 raise parent_not_found(parent_code)
             parent_level = parent[3]
         level = level_for_new_entry(parent_level)
-        code = suggest_code(level, parent_code, lambda codes: _used_codes(cur, codes))
+        code = suggest_code(level, parent_code, lambda codes: _used_codes(cur, codes), after)
         return {"code": code, "level": level}
     finally:
         cur.close()

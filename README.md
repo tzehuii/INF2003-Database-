@@ -1,160 +1,100 @@
 # ProjectApp
 
-Team repository for the INF2003 Business and Tender Analytics application. It holds the MariaDB schema, a FastAPI backend, the declared business API routes, and a React frontend.
+Run the Business and Tender Analytics web application locally on Windows. Use PowerShell for the commands below.
 
-## Implemented scope
+## First-time setup
 
-The backend currently provides the runnable foundation and the declared API surface, and the frontend provides the page structure.
+### 1. Install the required software
 
-- A FastAPI application with one working route, `GET /health`.
-- A configuration loader for the database connection settings.
-- A MariaDB connectivity check that runs `SELECT 1`.
-- A MongoDB connectivity check that runs the `ping` command.
-- Declared business routes under `/api` that return HTTP `501` until implemented.
-- A React + TypeScript + Vite frontend under `frontend/` with the five pages, the global MariaDB / MongoDB selector, and a small API client.
+- Python 3.13, with the Windows Python launcher (`py`).
+- Node.js 22.12 or newer in a supported LTS release, including npm.
+- MariaDB 12.3, matching the supplied database dump, including the `mariadb` command-line client.
+- MongoDB Community Server and MongoDB Database Tools, including `mongorestore`.
 
-Business features are deliberately not implemented yet. There is no company search, filtering, agency or industry analysis, saved lists, supplier matching, or database comparison. The backend runs no table queries and no writes, so the existing MariaDB and MongoDB databases stay read-only inputs. The frontend contains no SQL and no MongoDB query logic, and it displays only clearly labelled placeholder values while the business routes return `501`.
+Start the MariaDB and MongoDB services. Make sure `py`, `npm`, `mariadb` and `mongorestore` are available in your terminal. Open a new terminal after installing software.
 
-## Prerequisite
+Download or clone this repository, then open PowerShell in its root folder, the folder containing this README.
 
-Python **3.13** is required. Python 3.12 and older are not supported.
+### 2. Load the databases once
+
+Skip this step if both project databases are already populated on your machine. Import only into a fresh local setup, not a database containing work you want to keep.
+
+Obtain these files from the project team. They are distributed separately from the repository.
+
+- `inf2003_data_only.sql`, the MariaDB data dump.
+- `inf2003_mongodb.archive`, the compressed MongoDB backup.
+
+In the full project folder, the files are in `05_Data/` and `04_Outputs/` respectively. For the commands below, place copies in `C:\ProjectApp-data\`, outside the repository.
+
+**MariaDB**
+
+From the repository root, connect using your local administrator account. Replace `3306` with your actual MariaDB port in both commands. Enter your password when prompted.
 
 ```powershell
-python --version
+mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source sql/INF2003_Grp1_database_schema_mariadb.sql"
+mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source C:/ProjectApp-data/inf2003_data_only.sql"
 ```
 
-Use the explicit Python 3.13 executable when creating the environment if your default `python` is older.
+Run the schema command first, then the data command. They create and populate `inf2003_db_mariadb`. The data import is large and may take a while.
 
-## Virtual environment and dependencies
+**MongoDB**
 
-Create exactly one environment at the repository root, then install the pinned dependencies.
+Restore the backup into your local server.
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe --version
+mongorestore --uri="mongodb://127.0.0.1:27017" --gzip --archive="C:\ProjectApp-data\inf2003_mongodb.archive" --stopOnError
+```
+
+This restores `inf2003_mongodb`. If your server requires authentication or uses another address, use its connection URI instead. Do not proceed if either import reports errors.
+
+### 3. Install application dependencies
+
+From the repository root, run these commands once.
+
+```powershell
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+npm --prefix frontend ci
 ```
 
-Confirm the reported version is Python `3.13.x` and that dependencies are consistent.
+### 4. Set your database connection details
 
-```powershell
-.\.venv\Scripts\python.exe -m pip check
-```
-
-## Configuration
-
-Copy the committed example to a local `.env` in the repository root.
+Copy the example configuration only if you do not already have a `.env` file.
 
 ```powershell
 Copy-Item .env.example .env
+notepad .env
 ```
 
-Then edit `.env` and replace the placeholder values. The required keys are `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD`, `MARIADB_DATABASE`, `MONGODB_URI`, and `MONGODB_DB_NAME`.
+Set `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER` and `MARIADB_PASSWORD` to your local connection details. The example port is `3307`, so change it if your server uses another port. Set `MONGODB_URI` to your MongoDB connection URI.
 
-- `MARIADB_DATABASE` must be `inf2003_db_mariadb` and `MONGODB_DB_NAME` must be `inf2003_mongodb`.
-- The example port `3307` is a local value only. Use the port from your own MariaDB configuration.
-- The example file contains placeholders only. Never commit a real `.env`, real credentials, or a real connection string.
-- Real process environment variables take precedence over `.env` values.
+Keep the database names as `MARIADB_DATABASE=inf2003_db_mariadb` and `MONGODB_DB_NAME=inf2003_mongodb`. Save the file. Never commit `.env` or share its passwords.
 
-The MongoDB key names are shared with the MongoDB scripts in the sibling `database/` folder, so both files must keep the same `MONGODB_URI` and `MONGODB_DB_NAME` values while both exist.
+## Run the application
 
-## Start the backend
+Use these steps after setup and whenever you want to run the app again. Keep both database services running.
 
-Run this from the repository root.
+**Terminal 1**, from the repository root, start the backend.
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-An optional development convenience is `--reload`. It is not part of the acceptance criteria.
-
-Stop the server with `Ctrl+C`.
-
-## Health check
+**Terminal 2**, also from the repository root, start the frontend.
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
+npm --prefix frontend run dev
 ```
 
-When both databases are reachable the route returns HTTP `200`.
+Open **http://localhost:5173/**, or the address printed by Vite if that port is occupied. Keep both terminals open. Press `Ctrl+C` in each terminal to stop the app.
 
-```json
-{
-  "status": "ok",
-  "databases": {
-    "mariadb": "reachable",
-    "mongodb": "reachable"
-  }
-}
-```
+To check database connectivity, open **http://127.0.0.1:8000/health**. A healthy response shows `status` as `ok` and both databases as `reachable`. In the app, switch to **System → Business Activities** to browse the real catalogue in either database. Public pages may still show labelled sample data or a not-implemented notice.
 
-When either database is unreachable the route returns HTTP `503` and reports each database separately. The response never includes credentials, connection strings, stack traces, or raw connector error messages.
+## Troubleshooting
 
-```json
-{
-  "status": "degraded",
-  "databases": {
-    "mariadb": "unreachable",
-    "mongodb": "reachable"
-  }
-}
-```
-
-FastAPI's interactive documentation is available at `http://127.0.0.1:8000/docs`.
-
-## Current limitation
-
-Business endpoints are declared but not implemented. They appear in `/docs` and `/openapi.json` with their full request and response shape, and each one returns HTTP `501` with a `not_implemented` code. `GET /health` is the only route that performs real work, and it reports database reachability alone.
-
-## Frontend
-
-The frontend lives in `frontend/`. It uses React, TypeScript, Vite, React Router, and plain CSS. No other runtime dependency was added.
-
-Node.js 20.19 or newer is required by Vite 8.
-
-```powershell
-cd frontend
-npm install
-```
-
-Start the backend first, in a separate terminal from the repository root.
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-```
-
-Then start the frontend.
-
-```powershell
-cd frontend
-npm run dev
-```
-
-The development server runs at `http://localhost:5173/`. It proxies every `/api` request to the backend on `127.0.0.1:8000`, so no backend CORS change is needed and the frontend always calls the real API routes.
-
-### Pages
-
-| Route | Page |
-| --- | --- |
-| `/companies` | Company search, filters, results table, and pagination |
-| `/companies/:uen` | Company detail |
-| `/agency-awards` | Agency supplier comparison |
-| `/industry-awards` | Industry award comparison |
-| `/saved-lists` | Saved company lists and review status |
-
-Opening `/` redirects to `/companies`. The database selector in the header is global and adds `database=mariadb` or `database=mongodb` to every business request.
-
-Build the production bundle with the following command. The `dist/` output is not committed.
-
-```powershell
-cd frontend
-npm run build
-```
-
-### Placeholder data
-
-`frontend/src/api/mockData.ts` exists only so the page layouts can be reviewed while the business routes return `501`. Every sample company and agency name is prefixed with `(sample)`, every page that shows those values carries a visible placeholder notice, and no value is presented as real data. The file and the pages' use of it are deleted as each real API response is wired in.
-
-The frontend shows the real backend state at the top of each page. A `501` response appears as an expected "not implemented yet" notice. A `409 supplier_matching_not_ready` response appears as a blocked state on the company-linked-award views. The backend returns `501` for those requests while the routes are unimplemented, so that blocked state is handled but not currently reachable.
-
-Industry award analysis is not blocked. Incomplete supplier matching reduces its coverage rather than its availability, so it returns a normal response and reports excluded rows through its coverage counts. Industry totals include matched suppliers with a valid primary SSIC, and unmatched suppliers are excluded.
+- **A command is not recognised.** Check that the required software is installed and its executable folder is on your Windows `PATH`. Reopen PowerShell after changing it.
+- **Python package installation fails for `mariadb`.** Check that you are using Python 3.13. If the error asks for Connector/C or build tools, install the requested MariaDB Connector/C or Microsoft C++ Build Tools, then retry.
+- **The backend reports missing settings or an unreachable database.** Check the root `.env`, database services, ports, credentials and exact database names. Restart the backend after editing `.env`. Existing environment variables override `.env`.
+- **The catalogue is empty.** Confirm both imports completed successfully. A reachable database is not necessarily populated.
+- **MongoDB creation reports a validation error.** Ask the team for a current backup. Older backups may reject manually created activities. Do not disable database validation.
+- **The page cannot reach the backend.** Keep Terminal 1 running on port `8000`, then refresh the page.

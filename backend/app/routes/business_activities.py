@@ -47,6 +47,14 @@ ParentQuery = Annotated[
     str | None, Query(description="Code of the parent entry. Omit for Sections.")
 ]
 
+AfterQuery = Annotated[
+    str | None,
+    Query(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="A code already suggested. The next free code after it is returned instead.",
+    ),
+]
+
 SEARCH_LIMIT_MAX = 200
 
 
@@ -184,10 +192,15 @@ def search(
         503: UNAVAILABLE,
     },
 )
-def next_code(request: Request, database: DatabaseQuery, parent_code: ParentQuery = None) -> dict:
+def next_code(
+    request: Request,
+    database: DatabaseQuery,
+    parent_code: ParentQuery = None,
+    after: AfterQuery = None,
+) -> dict:
     if parent_code is not None:
         _require_code(parent_code)
-    data = _run(request, database, "next_code", parent_code)
+    data = _run(request, database, "next_code", parent_code, after)
     return {"data": data, "meta": _meta(database)}
 
 

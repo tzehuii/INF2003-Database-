@@ -1,15 +1,16 @@
 /**
  * Application shell and routing.
  *
- * The layout is Header, Sidebar, and the active page, and it stays the same on
+ * The layout is Sidebar, Top bar, and the active page, and it stays the same on
  * every route. Navigating between pages, or switching the selected database,
  * never changes the layout.
  */
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import AppHeader from './components/AppHeader'
 import Sidebar from './components/Sidebar'
-import { DatabaseProvider } from './databaseContext.tsx'
+import TopBar from './components/TopBar'
+import { BreadcrumbProvider } from './breadcrumbContext'
+import { DatabaseProvider, useDatabase } from './databaseContext.tsx'
 import AgencyAwardsPage from './pages/AgencyAwardsPage'
 import CompaniesPage from './pages/CompaniesPage'
 import CompanyDetailPage from './pages/CompanyDetailPage'
@@ -23,11 +24,14 @@ import SystemSectionPage from './pages/SystemSectionPage'
 import { DEFAULT_SYSTEM_PATH } from './systemSections'
 
 function AppLayout() {
+  const { database } = useDatabase()
+
   return (
-    <div className="app-shell">
+    // `data-database` drives the identity stripe along the top of the workspace.
+    <div className="app-shell" data-database={database}>
       <Sidebar />
       <div className="app-workspace">
-        <AppHeader />
+        <TopBar />
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Navigate to="/companies" replace />} />
@@ -55,7 +59,9 @@ export default function App() {
   return (
     <DatabaseProvider>
       <BrowserRouter>
-        <AppLayout />
+        <BreadcrumbProvider>
+          <AppLayout />
+        </BreadcrumbProvider>
       </BrowserRouter>
     </DatabaseProvider>
   )

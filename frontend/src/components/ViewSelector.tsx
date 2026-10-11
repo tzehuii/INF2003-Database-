@@ -1,8 +1,10 @@
 /**
- * The Application / System view toggle shown in the header.
+ * The Public / System view switch, shown in the sidebar under the brand.
  *
- * The view is derived from the URL, so it is independent of the selected
- * database. Switching views returns to the last page visited in that view.
+ * It changes which navigation set the sidebar shows, so it lives with the
+ * navigation. The view is derived from the URL, so it is independent of the
+ * selected database. Switching views returns to the last page visited in that
+ * view.
  */
 
 import { useEffect, useRef } from 'react'
@@ -12,6 +14,7 @@ import {
   DEFAULT_SYSTEM_PATH,
   isSystemPath,
 } from '../systemSections'
+import { Icon } from './icons'
 
 export default function ViewSelector() {
   const location = useLocation()
@@ -28,32 +31,28 @@ export default function ViewSelector() {
   }, [inSystem, location.pathname])
 
   const options = [
-    { value: 'application', label: 'Public', active: !inSystem },
-    { value: 'system', label: 'System', active: inSystem },
+    { value: 'application', label: 'Public', icon: 'globe', active: !inSystem },
+    { value: 'system', label: 'System', icon: 'sliders', active: inSystem },
   ] as const
 
   return (
-    <div className="database-selector" role="group" aria-label="Select view">
-      <span className="database-selector-label">View</span>
-      <div className="database-selector-options">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className={
-              option.active
-                ? 'database-selector-option database-selector-option-active'
-                : 'database-selector-option'
-            }
-            aria-pressed={option.active}
-            onClick={() => {
-              if (!option.active) navigate(lastPaths.current[option.value])
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+    <div className="segmented segmented-full" role="group" aria-label="Select view">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={
+            option.active ? 'segmented-option segmented-option-active' : 'segmented-option'
+          }
+          aria-pressed={option.active}
+          onClick={() => {
+            if (!option.active) navigate(lastPaths.current[option.value])
+          }}
+        >
+          <Icon name={option.icon} className="segmented-icon" />
+          <span className="rail-hidden">{option.label}</span>
+        </button>
+      ))}
     </div>
   )
 }

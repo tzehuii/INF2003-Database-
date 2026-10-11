@@ -12,14 +12,19 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { API_ROUTES, apiRequest } from '../../api/client'
 import type { ActivityDetail, ActivityNextCode } from '../../api/client'
 import { useApiResource } from '../../api/useApiResource'
-import { Card } from '../../components/ui'
+import {
+  Attribute,
+  AttributeList,
+  PageHeading,
+  Panel,
+  SkeletonRows,
+} from '../../components/ui'
 import { useDatabase } from '../../databaseContext.tsx'
 import {
   ACTIVITIES_PATH,
   ActivityError,
   CODE_FORMAT_HINTS,
   DATABASE_LABELS,
-  DetailRow,
   currentFor,
 } from './shared'
 
@@ -29,8 +34,12 @@ function CreateForm({ parentCode }: { parentCode: string | null }) {
   const parentRequest = useApiResource<ActivityDetail>(
     parentCode === null ? null : API_ROUTES.activity(parentCode),
   )
+  // The code the next suggestion must follow, so "Suggest another code" moves on
+  // instead of asking the backend the same question again.
+  const [afterCode, setAfterCode] = useState<string | undefined>(undefined)
   const suggestion = useApiResource<ActivityNextCode>(API_ROUTES.activityNextCode, {
     parent_code: parentCode ?? undefined,
+    after: afterCode,
   })
 
   const [title, setTitle] = useState('')
@@ -55,24 +64,32 @@ function CreateForm({ parentCode }: { parentCode: string | null }) {
   const backPath = parentCode === null ? ACTIVITIES_PATH : `${ACTIVITIES_PATH}/${parentCode}`
   const label = DATABASE_LABELS[database]
 
+  // The skeleton shows only before the first answer. A later "Suggest another
+  // code" refreshes in place, so the form and what was typed stay on screen.
   if (
     suggested === null ||
-    suggestion.isLoading ||
     (parentCode !== null && (parentResult === null || parentRequest.isLoading))
   ) {
-    return <p className="tree-status">Loading…</p>
+    return (
+      <Panel>
+        <SkeletonRows count={4} height={44} label="Loading the form" />
+      </Panel>
+    )
   }
 
   // The parent could not be read, or it is a Sub-class. Nothing can be created.
   if (parentResult !== null && parentResult.state !== 'success') {
     return (
       <>
+        <PageHeading
+          title="Add entry"
+          actions={
+            <Link className="button button-secondary" to={ACTIVITIES_PATH}>
+              Back to catalogue
+            </Link>
+          }
+        />
         <ActivityError failure={parentResult} title="The parent entry could not be loaded." />
-        <div className="form-actions">
-          <Link className="button button-secondary" to={ACTIVITIES_PATH}>
-            Back to catalogue
-          </Link>
-        </div>
       </>
     )
   }
@@ -80,8 +97,12 @@ function CreateForm({ parentCode }: { parentCode: string | null }) {
   const suggestionFailure = suggested.state === 'success' ? null : suggested
 
   function suggestAnother() {
+    const current = code.trim()
+    setAfterCode(/^[A-Z0-9]{1,5}$/.test(current) ? current : suggestedCode ?? undefined)
     setCodeEdited(false)
     setSaveError(null)
+    // Also covers a failed suggestion, where the inputs are unchanged and the
+    // button has to retry the same request.
     suggestion.reload()
   }
 
@@ -107,99 +128,114 @@ function CreateForm({ parentCode }: { parentCode: string | null }) {
   }
 
   return (
-    <Card title={level === null ? 'Add entry' : `Create ${level}`}>
-      {suggestionFailure !== null && (
-        <ActivityError
-          failure={suggestionFailure}
-          title={
-            suggestionFailure.code === 'code_space_exhausted'
-              ? 'No code is available.'
-              : 'A code could not be suggested.'
-          }
-        />
-      )}
+    <>
+      <PageHeading
+        title={level === null ? 'Add entry' : `Create ${level}`}
+      />
 
-      <form onSubmit={save} noValidate>
-        <dl className="detail-list">
-          <DetailRow label="Database">{label}</DetailRow>
-          <DetailRow label="Level">{level ?? 'Not available'}</DetailRow>
-          <DetailRow label="Parent">
-            {parent === null ? (
-              'None. This creates a top-level Section.'
-            ) : (
-              <>
-                {parent.code} {parent.title} ({parent.level})
-              </>
-            )}
-          </DetailRow>
-        </dl>
-
-        <div className="filter-grid form-fields">
-          <label className="field">
-            <span className="field-label">Title</span>
-            <input
-              className="field-input"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              disabled={suggestionFailure !== null}
-              autoFocus
+      <Panel title="Entry details">
+        {suggestionFailure !== null && (
+          <div className="panel-pad">
+            <ActivityError
+              failure={suggestionFailure}
+              title={
+                suggestionFailure.code === 'code_space_exhausted'
+                  ? 'No code is available.'
+                  : 'A code could not be suggested.'
+              }
             />
-            <span className="field-hint">Up to 500 characters.</span>
-          </label>
-
-          <label className="field">
-            <span className="field-label">Code</span>
-            <input
-              className="field-input"
-              value={code}
-              onChange={(event) => {
-                setCode(event.target.value)
-                setCodeEdited(true)
-              }}
-              disabled={suggestionFailure !== null}
-              spellCheck={false}
-              autoComplete="off"
-            />
-            <span className="field-hint">
-              {level !== null && CODE_FORMAT_HINTS[level]} A suggested unused code is filled in.
-              You can edit it. Availability is checked again when you save.
-            </span>
-          </label>
-        </div>
-
-        {saveError !== null && (
-          <p className="field-warning" role="alert">
-            {saveError}
-          </p>
+          </div>
         )}
 
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="button button-primary"
-            disabled={isSaving || suggestionFailure !== null}
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </button>
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={suggestAnother}
-            disabled={isSaving || suggestionFailure !== null}
-          >
-            Suggest another code
-          </button>
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={() => navigate(backPath)}
-            disabled={isSaving}
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </Card>
+        <form onSubmit={save} noValidate>
+          <AttributeList>
+            <Attribute label="Database">{label}</Attribute>
+            <Attribute label="Level">{level ?? 'Not available'}</Attribute>
+            <Attribute label="Parent">
+              {parent === null ? (
+                'None. This creates a top-level Section.'
+              ) : (
+                <>
+                  <span className="mono">{parent.code}</span> {parent.title} ({parent.level})
+                </>
+              )}
+            </Attribute>
+          </AttributeList>
+
+          <div className="form-fields">
+            <label className="field">
+              <span className="field-label">Title</span>
+              <input
+                className="input"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={suggestionFailure !== null}
+                autoFocus
+              />
+              <span className="field-hint">Up to 500 characters.</span>
+            </label>
+
+            <div className="field">
+              <label className="field-label" htmlFor="activity-code">
+                Code
+              </label>
+              <div className="field-with-action">
+                <input
+                  id="activity-code"
+                  className="input input-mono"
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.target.value)
+                    setCodeEdited(true)
+                  }}
+                  disabled={suggestionFailure !== null}
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={suggestAnother}
+                  disabled={isSaving}
+                >
+                  Suggest another code
+                </button>
+              </div>
+              <span className="field-hint">
+                {level !== null && CODE_FORMAT_HINTS[level]} A free code is suggested. You can
+                change it.
+              </span>
+            </div>
+          </div>
+
+          {saveError !== null && (
+            <div className="panel-pad">
+              <p className="field-warning" role="alert">
+                {saveError}
+              </p>
+            </div>
+          )}
+
+          <div className="panel-pad panel-pad-actions">
+            <button
+              type="submit"
+              className="button button-primary"
+              disabled={isSaving || suggestionFailure !== null}
+            >
+              {isSaving ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => navigate(backPath)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Panel>
+    </>
   )
 }
 

@@ -287,6 +287,11 @@ export function isSupplierMatchingNotReady<T>(result: ApiResult<T>): boolean {
   return result.state === 'supplier_matching_not_ready'
 }
 
+/** True once a route has returned real data. Sample-data and HTTP notices hide then. */
+export function isLiveData<T>(result: ApiResult<T> | null): result is ApiSuccess<T> {
+  return result !== null && result.state === 'success'
+}
+
 /** A short, safe sentence for any non-success state. */
 export function describeFailure(result: ApiFailure): string {
   switch (result.state) {

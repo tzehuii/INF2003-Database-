@@ -6,10 +6,13 @@
  * Switching the database clears that state and returns to the catalogue, because
  * the two databases are separate catalogues and a code open in one may not exist
  * in the other.
+ *
+ * The catalogue shows the page heading here. The detail and create screens draw
+ * their own headings, because those carry the record's code, level and actions.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { PageHeading } from '../../components/ui'
 import { useDatabase } from '../../databaseContext.tsx'
 import { ACTIVITIES_PATH } from './shared'
@@ -18,6 +21,7 @@ import type { BrowseState } from './shared'
 export default function BusinessActivitiesPage() {
   const { database } = useDatabase()
   const navigate = useNavigate()
+  const isCatalogue = useMatch({ path: ACTIVITIES_PATH, end: true }) !== null
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
   const [section, setSection] = useState('')
@@ -42,6 +46,8 @@ export default function BusinessActivitiesPage() {
     )
   }, [])
 
+  const collapseAll = useCallback(() => setExpanded([]), [])
+
   const browse: BrowseState = {
     draft,
     setDraft,
@@ -51,14 +57,26 @@ export default function BusinessActivitiesPage() {
     setSection,
     expanded,
     toggle,
+    collapseAll,
   }
 
   return (
     <>
-      <PageHeading
-        title="Business Activities"
-        description="Browse and maintain the SSIC business activity catalogue in the selected database."
-      />
+      {isCatalogue && (
+        <PageHeading
+          title="Business Activities"
+          description="Browse and maintain the SSIC business activity catalogue in the selected database."
+          actions={
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => navigate(`${ACTIVITIES_PATH}/new`)}
+            >
+              Create Section
+            </button>
+          }
+        />
+      )}
       <Outlet context={browse} />
     </>
   )

@@ -7,17 +7,28 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { API_ROUTES, apiRequest } from '../../api/client'
 import type { ActivityDetail } from '../../api/client'
 import { useApiResource } from '../../api/useApiResource'
-import { Card, StatusBadge } from '../../components/ui'
+import { truncateText, useBreadcrumbTrail } from '../../breadcrumbContext'
+import {
+  Attribute,
+  AttributeList,
+  ConfirmationBanner,
+  PageHeading,
+  Panel,
+  SkeletonRows,
+  StatusBadge,
+} from '../../components/ui'
 import { useDatabase } from '../../databaseContext.tsx'
 import {
   ACTIVITIES_PATH,
+  ActivityCode,
+  useFlashNotice,
   ActivityError,
   DATABASE_LABELS,
-  DetailRow,
+  HierarchyList,
   currentFor,
 } from './shared'
 
@@ -62,22 +73,24 @@ function DeleteDialog({
   return (
     <dialog
       ref={dialog}
-      className="confirm-dialog"
+      className="dialog"
       aria-labelledby="delete-dialog-title"
       onClose={onClose}
     >
-      <h2 id="delete-dialog-title" className="card-title">
+      <h2 id="delete-dialog-title" className="dialog-title">
         {blockedMessage === null ? 'Delete this activity?' : 'Activity not deleted'}
       </h2>
 
-      <dl className="detail-list detail-list-compact">
-        <DetailRow label="Code">{detail.code}</DetailRow>
-        <DetailRow label="Title">{detail.title}</DetailRow>
-        <DetailRow label="Database">{label}</DetailRow>
-      </dl>
+      <AttributeList>
+        <Attribute label="Code">
+          <span className="mono">{detail.code}</span>
+        </Attribute>
+        <Attribute label="Title">{detail.title}</Attribute>
+        <Attribute label="Database">{label}</Attribute>
+      </AttributeList>
 
       {blockedMessage === null ? (
-        <p className="muted-text">
+        <p className="dialog-text">
           This removes only this one entry from {label}. It cannot be undone. The entry is
           deleted only if it still has no child entries and no company uses it.
         </p>
@@ -87,17 +100,7 @@ function DeleteDialog({
         </p>
       )}
 
-      <div className="form-actions">
-        {blockedMessage === null && (
-          <button
-            type="button"
-            className="button button-danger"
-            onClick={confirmDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? 'Deleting…' : 'Confirm Delete'}
-          </button>
-        )}
+      <div className="dialog-actions">
         <button
           type="button"
           className="button button-secondary"
@@ -106,6 +109,16 @@ function DeleteDialog({
         >
           {blockedMessage === null ? 'Cancel' : 'Close'}
         </button>
+        {blockedMessage === null && (
+          <button
+            type="button"
+            className="button button-danger-solid"
+            onClick={confirmDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Deleting…' : 'Confirm Delete'}
+          </button>
+        )}
       </div>
     </dialog>
   )
@@ -114,35 +127,59 @@ function DeleteDialog({
 function ActivityDetailView({ code }: { code: string }) {
   const { database } = useDatabase()
   const navigate = useNavigate()
-  const location = useLocation()
-  const notice = (location.state as { notice?: string } | null)?.notice
+  const { notice, show: showNotice, dismiss: dismissNotice } = useFlashNotice()
 
   const { result, isLoading, reload } = useApiResource<ActivityDetail>(API_ROUTES.activity(code))
   const [isEditing, setIsEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const current = currentFor(result, database)
+  const loaded = current !== null && current.state === 'success' ? current.body : null
+
+  // The top-bar breadcrumb shows every ancestor as a link, then this entry.
+  useBreadcrumbTrail(
+    loaded === null
+      ? null
+      : [
+          { label: 'Business Activities', to: ACTIVITIES_PATH },
+          ...loaded.path.map((node) => ({
+            code: node.code,
+            label: truncateText(node.title, 24),
+            title: `${node.code} ${node.title}`,
+            to: `${ACTIVITIES_PATH}/${node.code}`,
+          })),
+          {
+            code: loaded.code,
+            label: truncateText(loaded.title, 24),
+            title: `${loaded.code} ${loaded.title}`,
+          },
+        ],
+  )
 
   if (current === null || (isLoading && current.state !== 'success')) {
-    return <p className="tree-status">Loading…</p>
+    return (
+      <Panel>
+        <SkeletonRows count={4} height={44} label="Loading the activity" />
+      </Panel>
+    )
   }
 
   if (current.state !== 'success') {
     return (
       <>
-        <p className="breadcrumb">
-          <Link to={ACTIVITIES_PATH}>Business Activities</Link>
-        </p>
+        <PageHeading
+          title="Business Activities"
+          actions={
+            <Link className="button button-secondary" to={ACTIVITIES_PATH}>
+              Back to catalogue
+            </Link>
+          }
+        />
         <ActivityError failure={current} title={`Activity ${code} could not be loaded.`} />
-        <div className="form-actions">
-          <Link className="button button-secondary" to={ACTIVITIES_PATH}>
-            Back to catalogue
-          </Link>
-        </div>
       </>
     )
   }
@@ -153,7 +190,7 @@ function ActivityDetailView({ code }: { code: string }) {
   function startEditing() {
     setTitleDraft(detail.title)
     setSaveError(null)
-    setSaved(false)
+    dismissNotice()
     setIsEditing(true)
   }
 
@@ -174,7 +211,7 @@ function ActivityDetailView({ code }: { code: string }) {
 
     if (outcome.state === 'success') {
       setIsEditing(false)
-      setSaved(true)
+      showNotice('Title saved.')
       reload()
       return
     }
@@ -183,31 +220,16 @@ function ActivityDetailView({ code }: { code: string }) {
 
   return (
     <>
-      <p className="breadcrumb">
-        <Link to={ACTIVITIES_PATH}>Business Activities</Link>
-        {detail.path.map((node) => (
-          <span key={node.code}>
-            <span aria-hidden="true"> / </span>
-            <Link to={`${ACTIVITIES_PATH}/${node.code}`}>{node.code}</Link>
-          </span>
-        ))}
-        <span aria-hidden="true"> / </span>
-        <span>{detail.code}</span>
-      </p>
-
-      {notice && (
-        <p className="info-note" role="status">
-          {notice}
-        </p>
-      )}
-      {saved && (
-        <p className="info-note" role="status">
-          Title saved.
-        </p>
-      )}
-
-      <Card
-        title="Activity details"
+      <PageHeading
+        title={detail.title}
+        leading={
+          detail.level === 'Section' ? (
+            <span className="code-tile">{detail.code}</span>
+          ) : (
+            <span className="code-heading">{detail.code}</span>
+          )
+        }
+        trailing={<StatusBadge tone="outline">{detail.level}</StatusBadge>}
         actions={
           <>
             <button
@@ -228,16 +250,19 @@ function ActivityDetailView({ code }: { code: string }) {
             </button>
           </>
         }
-      >
+      />
+
+      {notice && <ConfirmationBanner onDismiss={dismissNotice}>{notice}</ConfirmationBanner>}
+
+      <Panel title="Activity details">
         <form onSubmit={saveTitle} noValidate>
-          <dl className="detail-list">
-            <DetailRow label="Code">{detail.code}</DetailRow>
-            <DetailRow label="Title">
+          <AttributeList>
+            <Attribute label="Title">
               {isEditing ? (
                 <label className="field">
                   <span className="visually-hidden">Title</span>
                   <input
-                    className="field-input"
+                    className="input"
                     value={titleDraft}
                     onChange={(event) => setTitleDraft(event.target.value)}
                     aria-invalid={saveError !== null}
@@ -247,29 +272,35 @@ function ActivityDetailView({ code }: { code: string }) {
               ) : (
                 detail.title
               )}
-            </DetailRow>
-            <DetailRow label="Level">
-              <StatusBadge tone="neutral">{detail.level}</StatusBadge>
-            </DetailRow>
-            <DetailRow label="Parent">
+            </Attribute>
+            <Attribute label="Parent">
               {detail.parent === null ? (
                 'None. This is a top-level Section.'
               ) : (
-                <Link to={`${ACTIVITIES_PATH}/${detail.parent.code}`}>
-                  {detail.parent.code} {detail.parent.title}
-                </Link>
+                <span className="parent-line">
+                  <ActivityCode
+                    code={detail.parent.code}
+                    level={detail.parent.level}
+                    parentCode={detail.path.length > 1 ? detail.path[detail.path.length - 2].code : null}
+                  />
+                  <Link className="row-link" to={`${ACTIVITIES_PATH}/${detail.parent.code}`}>
+                    {detail.parent.title}
+                  </Link>
+                </span>
               )}
-            </DetailRow>
-          </dl>
+            </Attribute>
+          </AttributeList>
 
           {saveError !== null && (
-            <p className="field-warning" role="alert">
-              {saveError}
-            </p>
+            <div className="panel-pad">
+              <p className="field-warning" role="alert">
+                {saveError}
+              </p>
+            </div>
           )}
 
           {isEditing && (
-            <div className="form-actions">
+            <div className="panel-pad panel-pad-actions">
               <button type="submit" className="button button-primary" disabled={isSaving}>
                 {isSaving ? 'Saving…' : 'Save'}
               </button>
@@ -284,15 +315,15 @@ function ActivityDetailView({ code }: { code: string }) {
             </div>
           )}
         </form>
-      </Card>
+      </Panel>
 
-      <Card
-        title="Child entries"
+      <Panel
+        title="Hierarchy"
         actions={
           addLabel !== null && (
             <button
               type="button"
-              className="button button-primary"
+              className="button button-secondary"
               onClick={() => navigate(`${ACTIVITIES_PATH}/new?parent=${encodeURIComponent(code)}`)}
               disabled={isEditing}
             >
@@ -301,40 +332,12 @@ function ActivityDetailView({ code }: { code: string }) {
           )
         }
       >
-        {detail.children.length === 0 ? (
-          <p className="empty-state">
-            {detail.child_level === null
-              ? 'A Sub-class is the lowest level and has no child entries.'
-              : 'This activity has no child entries.'}
-          </p>
-        ) : (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Code</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Level</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.children.map((child) => (
-                  <tr key={child.code}>
-                    <td className="cell-uen">{child.code}</td>
-                    <td>
-                      <Link className="tree-link" to={`${ACTIVITIES_PATH}/${child.code}`}>
-                        {child.title}
-                      </Link>
-                    </td>
-                    <td className="cell-nowrap">{child.level}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
+        <HierarchyList
+          ancestors={detail.path}
+          current={detail}
+          childEntries={detail.children}
+        />
+      </Panel>
       {isDeleteOpen && <DeleteDialog detail={detail} onClose={() => setIsDeleteOpen(false)} />}
     </>
   )

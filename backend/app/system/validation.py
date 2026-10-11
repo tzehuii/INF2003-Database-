@@ -157,13 +157,22 @@ def suggest_code(
     level: str,
     parent_code: str | None,
     find_used: Callable[[list[str]], Collection[str]],
+    after: str | None = None,
 ) -> str:
     """Return the first candidate code that the selected database does not use.
 
     ``find_used`` receives the candidates and returns those already stored.
+
+    With ``after``, the search starts at the candidate following it and wraps
+    around, so asking again moves on to the next free code instead of repeating
+    the same one. The ``after`` code itself is tried last, so it is returned
+    only when it is the only free code left.
     """
 
     candidates = candidate_codes(level, parent_code)
+    if after in candidates:
+        start = candidates.index(after) + 1
+        candidates = candidates[start:] + candidates[:start]
     used = set(find_used(candidates))
     for candidate in candidates:
         if candidate not in used:

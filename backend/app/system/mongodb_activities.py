@@ -136,7 +136,7 @@ def read_detail(db, code: str) -> dict:
     }
 
 
-def next_code(db, parent_code: str | None) -> dict:
+def next_code(db, parent_code: str | None, after: str | None = None) -> dict:
     """Suggest an unused code for a new child of ``parent_code``."""
 
     parent_level = None
@@ -153,7 +153,7 @@ def next_code(db, parent_code: str | None) -> dict:
             for document in db.industries.find({"_id": {"$in": candidates}}, {"_id": 1})
         }
 
-    return {"code": suggest_code(level, parent_code, find_used), "level": level}
+    return {"code": suggest_code(level, parent_code, find_used, after), "level": level}
 
 
 def create(db, title: str, code: str, parent_code: str | None) -> dict:
