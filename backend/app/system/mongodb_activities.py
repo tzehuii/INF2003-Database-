@@ -240,8 +240,8 @@ def delete(db, code: str) -> None:
 
     has_children = db.industries.find_one({"parent_code": code}, {"_id": 1}) is not None
 
-    # The companies collection has no index on these fields, so look for any use
-    # in one pass first and only separate primary from secondary when one exists.
+    # Separate primary and secondary code indexes support this eligibility check.
+    # Only distinguish assignment types when at least one assignment exists.
     primary = secondary = False
     any_use = db.companies.find_one(
         {"$or": [{"activities.primary.code": code}, {"activities.secondary.code": code}]},

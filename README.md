@@ -1,55 +1,48 @@
 # ProjectApp
 
-Run the Business and Tender Analytics web application locally on Windows. Use PowerShell for the commands below.
+Business and Tender Analytics using MariaDB, MongoDB, FastAPI and React.
 
-## First-time setup
+Windows PowerShell commands run from the repository root. Both database services must be running, with the listed tools available on `PATH`.
 
-### 1. Install the required software
+## Requirements
 
-- Python 3.13, with the Windows Python launcher (`py`).
-- Node.js 22.12 or newer in a supported LTS release, including npm.
-- MariaDB 12.3, matching the supplied database dump, including the `mariadb` command-line client.
-- MongoDB Community Server and MongoDB Database Tools, including `mongorestore`.
+| Software | Version | Command |
+| --- | --- | --- |
+| Python | 3.13 | `py` |
+| Node.js and npm | Supported LTS, 22.12 or newer | `node`, `npm` |
+| MariaDB Server and client | 12.3, tested with 12.3.3 | `mariadb` |
+| MongoDB Community Server | Tested with 8.3.11 | MongoDB service |
+| MongoDB Database Tools | Tested with 100.18.0 | `mongorestore` |
 
-Start the MariaDB and MongoDB services. Make sure `py`, `npm`, `mariadb` and `mongorestore` are available in your terminal. Open a new terminal after installing software.
+## Database restore
 
-Download or clone this repository, then open PowerShell in its root folder, the folder containing this README.
+| File | Contents |
+| --- | --- |
+| `inf2003_data_only.sql` | MariaDB data, loaded after the repository schema |
+| `inf2003_mongodb.archive` | MongoDB records, company connections, indexes and validators |
 
-### 2. Load the databases once
+Commands below use `C:\ProjectApp-data\` as an example backup location. Paths, ports and credentials must match the local environment.
 
-Skip this step if both project databases are already populated on your machine. Import only into a fresh local setup, not a database containing work you want to keep.
+**Restore into fresh databases only.** Existing current databases need no import. These commands do not replace older copies safely. Back up existing work before replacement, and stop if an import fails.
 
-Obtain these files from the project team. They are distributed separately from the repository.
+### MariaDB
 
-- `inf2003_data_only.sql`, the MariaDB data dump.
-- `inf2003_mongodb.archive`, the compressed MongoDB backup.
-
-In the full project folder, the files are in `05_Data/` and `04_Outputs/` respectively. For the commands below, place copies in `C:\ProjectApp-data\`, outside the repository.
-
-**MariaDB**
-
-From the repository root, connect using your local administrator account. Replace `3306` with your actual MariaDB port in both commands. Enter your password when prompted.
+Schema first, then data. `--password` prompts for the administrator account's password.
 
 ```powershell
 mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source sql/INF2003_Grp1_database_schema_mariadb.sql"
 mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source C:/ProjectApp-data/inf2003_data_only.sql"
 ```
 
-Run the schema command first, then the data command. They create and populate `inf2003_db_mariadb`. The data import is large and may take a while.
-
-**MongoDB**
-
-Restore the backup into your local server.
+### MongoDB
 
 ```powershell
-mongorestore --uri="mongodb://127.0.0.1:27017" --gzip --archive="C:\ProjectApp-data\inf2003_mongodb.archive" --stopOnError
+mongorestore --uri="mongodb://127.0.0.1:27017" --gzip --archive="C:\ProjectApp-data\inf2003_mongodb.archive" --nsInclude="inf2003_mongodb.*" --stopOnError
 ```
 
-This restores `inf2003_mongodb`. If your server requires authentication or uses another address, use its connection URI instead. Do not proceed if either import reports errors.
+No separate supplier-matching step is required after restoring the supplied archive.
 
-### 3. Install application dependencies
-
-From the repository root, run these commands once.
+## Dependencies
 
 ```powershell
 py -3.13 -m venv .venv
@@ -57,44 +50,49 @@ py -3.13 -m venv .venv
 npm --prefix frontend ci
 ```
 
-### 4. Set your database connection details
+## Configuration
 
-Copy the example configuration only if you do not already have a `.env` file.
+The backend reads the repository-root `.env`. Create it only if absent.
 
 ```powershell
 Copy-Item .env.example .env
-notepad .env
 ```
 
-Set `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER` and `MARIADB_PASSWORD` to your local connection details. The example port is `3307`, so change it if your server uses another port. Set `MONGODB_URI` to your MongoDB connection URI.
+Example values for `.env` follow. Replace the account credentials and connection details with local values.
 
-Keep the database names as `MARIADB_DATABASE=inf2003_db_mariadb` and `MONGODB_DB_NAME=inf2003_mongodb`. Save the file. Never commit `.env` or share its passwords.
+```dotenv
+MARIADB_HOST=127.0.0.1
+MARIADB_PORT=3306
+MARIADB_USER=your_local_username
+MARIADB_PASSWORD=your_local_password
+MARIADB_DATABASE=inf2003_db_mariadb
 
-## Run the application
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB_NAME=inf2003_mongodb
+```
 
-Use these steps after setup and whenever you want to run the app again. Keep both database services running.
+Both database names are fixed. Both connections are required. The MariaDB account needs read/write access to the project database. `.env.example` uses port `3307`, which may differ from the local server. Process environment variables override `.env`. Credentials must not be committed.
 
-**Terminal 1**, from the repository root, start the backend.
+## Run
+
+Backend and frontend run in separate terminals.
+
+### Backend
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-**Terminal 2**, also from the repository root, start the frontend.
+### Frontend
 
 ```powershell
 npm --prefix frontend run dev
 ```
 
-Open **http://localhost:5173/**, or the address printed by Vite if that port is occupied. Keep both terminals open. Press `Ctrl+C` in each terminal to stop the app.
+## Connectivity check
 
-To check database connectivity, open **http://127.0.0.1:8000/health**. A healthy response shows `status` as `ok` and both databases as `reachable`. In the app, switch to **System → Business Activities** to browse the real catalogue in either database. Public pages may still show labelled sample data or a not-implemented notice.
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/health"
+```
 
-## Troubleshooting
-
-- **A command is not recognised.** Check that the required software is installed and its executable folder is on your Windows `PATH`. Reopen PowerShell after changing it.
-- **Python package installation fails for `mariadb`.** Check that you are using Python 3.13. If the error asks for Connector/C or build tools, install the requested MariaDB Connector/C or Microsoft C++ Build Tools, then retry.
-- **The backend reports missing settings or an unreachable database.** Check the root `.env`, database services, ports, credentials and exact database names. Restart the backend after editing `.env`. Existing environment variables override `.env`.
-- **The catalogue is empty.** Confirm both imports completed successfully. A reachable database is not necessarily populated.
-- **MongoDB creation reports a validation error.** Ask the team for a current backup. Older backups may reject manually created activities. Do not disable database validation.
-- **The page cannot reach the backend.** Keep Terminal 1 running on port `8000`, then refresh the page.
+Expected response has `status` equal to `ok` and both databases marked `reachable`. This confirms connectivity, not a complete data import. **System → Business Activities** loads the real catalogue in either database mode.
