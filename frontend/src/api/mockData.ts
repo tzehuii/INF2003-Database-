@@ -28,7 +28,7 @@ import type {
 
 /** The note every page shows when it displays this file's values. */
 export const PLACEHOLDER_NOTICE =
-  'Placeholder data. The business routes currently return HTTP 501, so the values below are illustrative samples for layout review only. They are not real data and will be replaced by real API responses once the routes are implemented.'
+  'Sample values for layout review. The route returns HTTP 501 until it is implemented.'
 
 /**
  * Registry status labels used by the status filter while

@@ -1,95 +1,68 @@
 /**
- * Left sidebar navigation.
+ * Left sidebar: brand, the Public / System view switch, and the navigation for
+ * the active view. The active page is highlighted.
  *
- * Four navigation items and no Dashboard item. The active page is highlighted.
+ * At narrow widths the sidebar becomes an icon rail. The text labels stay in the
+ * DOM and are only hidden visually, so every item keeps its accessible name.
  */
 
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { SYSTEM_BASE_PATH, SYSTEM_SECTIONS, isSystemPath } from '../systemSections'
+import { Icon } from './icons'
+import type { IconName } from './icons'
+import ViewSelector from './ViewSelector'
 
-function NavigationIcon({ name }: { name: 'companies' | 'agency' | 'industry' | 'saved' }) {
-  const common = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    strokeWidth: 1.8,
-  }
+type NavItem = { to: string; label: string; icon: IconName; soon: boolean }
 
-  if (name === 'companies') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" {...common}>
-        <path d="M4 21V8l8-4 8 4v13" />
-        <path d="M8 21v-4h8v4M8 10h1M12 10h1M16 10h1M8 14h1M12 14h1M16 14h1" />
-      </svg>
-    )
-  }
-
-  if (name === 'agency') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" {...common}>
-        <path d="M12 3 3 8h18l-9-5ZM5 10v7M9 10v7M15 10v7M19 10v7M3 21h18M4 17h16" />
-      </svg>
-    )
-  }
-
-  if (name === 'industry') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" {...common}>
-        <path d="M5 20v-6M10 20V9M15 20V5M20 20V2" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" {...common}>
-      <path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3-6 3V4.5Z" />
-    </svg>
-  )
-}
-
-const NAVIGATION_ITEMS = [
-  { to: '/companies', label: 'Companies', icon: 'companies' },
-  { to: '/agency-awards', label: 'Agency Awards', icon: 'agency' },
-  { to: '/industry-awards', label: 'Industry Awards', icon: 'industry' },
-  { to: '/saved-lists', label: 'Saved Lists', icon: 'saved' },
-] as const
+const NAVIGATION_ITEMS: NavItem[] = [
+  { to: '/companies', label: 'Companies', icon: 'companies', soon: false },
+  { to: '/agency-awards', label: 'Agency Awards', icon: 'agency', soon: false },
+  { to: '/industry-awards', label: 'Industry Awards', icon: 'industry', soon: false },
+  { to: '/saved-lists', label: 'Saved Lists', icon: 'saved', soon: false },
+]
 
 export default function Sidebar() {
+  const { pathname } = useLocation()
+  const inSystem = isSystemPath(pathname)
+  const items: NavItem[] = inSystem
+    ? SYSTEM_SECTIONS.map((section) => ({
+        to: `${SYSTEM_BASE_PATH}/${section.slug}`,
+        label: section.label,
+        icon: section.icon,
+        soon: !section.built,
+      }))
+    : NAVIGATION_ITEMS
+
   return (
-    <nav className="sidebar" aria-label="Main navigation">
+    <aside className="sidebar">
       <div className="sidebar-brand">
-        <span className="sidebar-brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="m4 10 8-5 8 5M5 19h14M7 11v6M11 11v6M15 11v6M19 11v6" />
-          </svg>
+        <span className="sidebar-brand-mark">
+          <Icon name="logo" size={24} />
         </span>
-        <span className="sidebar-brand-copy">
-          <strong>ProjectApp</strong>
-          <small>Business intelligence</small>
-        </span>
+        <span className="sidebar-brand-name rail-hidden">ProjectApp</span>
       </div>
 
-      <p className="sidebar-label">Workspace</p>
-      <ul className="sidebar-list">
-        {NAVIGATION_ITEMS.map((item) => (
-          <li key={item.to}>
-            <NavLink
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'
-              }
-            >
-              <NavigationIcon name={item.icon} />
-              <span>{item.label}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+      <ViewSelector />
 
-      <div className="sidebar-foot">
-        <strong>Comparison mode</strong>
-        <span>Switch databases at any time. Each request runs against one database only.</span>
-      </div>
-    </nav>
+      <nav aria-label={inSystem ? 'System navigation' : 'Main navigation'}>
+        <p className="sidebar-group-label rail-hidden">{inSystem ? 'System' : 'Workspace'}</p>
+        <ul className="sidebar-list">
+          {items.map((item) => (
+            <li key={item.to}>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  isActive ? 'sidebar-link sidebar-link-active' : 'sidebar-link'
+                }
+              >
+                <Icon name={item.icon} />
+                <span className="sidebar-link-label rail-hidden">{item.label}</span>
+                {item.soon && <span className="sidebar-soon rail-hidden">Soon</span>}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
   )
 }

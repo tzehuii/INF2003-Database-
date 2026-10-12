@@ -3,13 +3,13 @@
  *
  * View suppliers and awarded amounts for a selected government agency.
  *
- * It shows three summary cards only, with no top-suppliers chart, and reports
+ * It shows three summary figures only, with no top-suppliers chart, and reports
  * the excluded no-supplier tender count as a small informational line rather
- * than a KPI card.
+ * than a fourth figure.
  */
 
 import { useState } from 'react'
-import { API_ROUTES } from '../api/client'
+import { API_ROUTES, isLiveData } from '../api/client'
 import type { AgencyAwardsData } from '../api/client'
 import {
   PLACEHOLDER_AGENCIES,
@@ -17,7 +17,18 @@ import {
   PLACEHOLDER_AGENCY_SUMMARY,
 } from '../api/mockData'
 import { useApiResource } from '../api/useApiResource'
-import { BackendStatusStrip, Card, PageHeading, PlaceholderNotice, StatusBadge } from '../components/ui'
+import {
+  BackendStatusStrip,
+  EmptyState,
+  PageHeading,
+  Pagination,
+  Panel,
+  PanelFooter,
+  PanelNotes,
+  PlaceholderNotice,
+  SampleDataBadge,
+  StatusBadge,
+} from '../components/ui'
 import { formatMoney, formatPercent } from '../format'
 
 /** Page size for the offset pagination the API uses. */
@@ -61,7 +72,9 @@ export default function AgencyAwardsPage() {
 
   // The summary is calculated from the full filtered result, before pagination
   // and before the above-average option removes supplier rows, which is the rule
-  // the API states.
+  // the API states. The date range is not applied to the placeholder rows because
+  // the sample data carries no award dates. Suppliers without an accepted company
+  // link stay visible with a null company identity, as the API defines.
   const allSuppliers = PLACEHOLDER_AGENCY_SUPPLIERS
   const averageTotal =
     allSuppliers.length === 0
@@ -77,9 +90,10 @@ export default function AgencyAwardsPage() {
   const hasPrevious = offset > 0
   const hasNext = offset + PAGE_SIZE < visibleSuppliers.length
 
+
   const supplierMatchingWarning =
     result !== null && result.state === 'not_implemented'
-      ? 'Agency analysis does not depend on supplier matching, so this page becomes usable once the route is implemented. An unaccepted supplier keeps a null company link.'
+      ? 'Agency analysis does not depend on supplier matching.'
       : undefined
 
   function runSearch(event: React.FormEvent) {
@@ -97,17 +111,18 @@ export default function AgencyAwardsPage() {
   return (
     <>
       <PageHeading
+        icon="agency"
         title="Agency Awards"
         description="Suppliers and awarded amounts for one government agency and period."
       />
 
-      <Card title="Filters">
-        <form onSubmit={runSearch}>
-          <div className="filter-grid">
-            <label className="field">
+      <Panel title="Suppliers" badge={!isLiveData(result) ? <SampleDataBadge /> : undefined}>
+        <form className="toolbar" onSubmit={runSearch}>
+          <div className="toolbar-row toolbar-row-fields">
+            <label className="field field-grow">
               <span className="field-label">Agency</span>
               <select
-                className="field-input"
+                className="input"
                 value={draft.agencyName}
                 onChange={(event) => setDraft({ ...draft, agencyName: event.target.value })}
               >
@@ -123,7 +138,7 @@ export default function AgencyAwardsPage() {
               <span className="field-label">Start Date</span>
               <input
                 type="date"
-                className="field-input"
+                className="input"
                 value={draft.startDate}
                 onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
               />
@@ -133,87 +148,86 @@ export default function AgencyAwardsPage() {
               <span className="field-label">End Date</span>
               <input
                 type="date"
-                className="field-input"
+                className="input"
                 value={draft.endDate}
                 onChange={(event) => setDraft({ ...draft, endDate: event.target.value })}
               />
             </label>
 
-            <div className="field field-checkbox">
-              <span className="field-label">&nbsp;</span>
-              <label className="checkbox-item">
-                <input
-                  type="checkbox"
-                  checked={draft.aboveAverageOnly}
-                  onChange={(event) =>
-                    setDraft({ ...draft, aboveAverageOnly: event.target.checked })
-                  }
-                />
-                <span>Above Average Only</span>
-              </label>
+            <label className="checkbox-item">
+              <input
+                type="checkbox"
+                checked={draft.aboveAverageOnly}
+                onChange={(event) =>
+                  setDraft({ ...draft, aboveAverageOnly: event.target.checked })
+                }
+              />
+              <span>Above Average Only</span>
+            </label>
+
+            <div className="toolbar-end">
+              <button type="submit" className="button button-primary">
+                Search
+              </button>
+              <button type="button" className="button button-secondary" onClick={reset}>
+                Reset
+              </button>
             </div>
           </div>
 
-          <div className="form-actions">
-            <button type="submit" className="button button-primary">
-              Search
-            </button>
-            <button type="button" className="button button-secondary" onClick={reset}>
-              Reset
-            </button>
-          </div>
+          {draft.aboveAverageOnly && (
+            <p className="field-hint">
+              Keeps suppliers whose total is above the average across the filtered result
+              {allSuppliers.length > 0 && <> ({formatMoney(averageTotal.toFixed(2))})</>}.
+            </p>
+          )}
         </form>
-      </Card>
 
-      <BackendStatusStrip
-        route={API_ROUTES.agencyAwards}
-        result={result}
-        isLoading={isLoading}
-        note={supplierMatchingWarning}
-      />
+        <BackendStatusStrip
+          route={API_ROUTES.agencyAwards}
+          result={result}
+          isLoading={isLoading}
+          note={supplierMatchingWarning}
+        />
 
-      <section className="kpi-grid" aria-label="Agency summary">
-        <div className="kpi-card">
-          <span className="kpi-label">Supplier Count</span>
-          <span className="kpi-value">{PLACEHOLDER_AGENCY_SUMMARY.supplier_count}</span>
+        <div className="stat-band" role="group" aria-label="Agency summary">
+          <dl className="stat-strip">
+            <div className="stat">
+              <dt className="stat-label">Supplier Count</dt>
+              <dd className="stat-value">{PLACEHOLDER_AGENCY_SUMMARY.supplier_count}</dd>
+            </div>
+            <div className="stat">
+              <dt className="stat-label">Tender Count</dt>
+              <dd className="stat-value">{PLACEHOLDER_AGENCY_SUMMARY.tender_count}</dd>
+            </div>
+            <div className="stat">
+              <dt className="stat-label">Total Award Amount</dt>
+              <dd className="stat-value">
+                {formatMoney(PLACEHOLDER_AGENCY_SUMMARY.total_award_amount)}
+              </dd>
+            </div>
+          </dl>
+          <p className="stat-footnote">
+            {PLACEHOLDER_AGENCY_SUMMARY.excluded_no_supplier_tender_count} tenders without a
+            named supplier were excluded from this analysis.
+          </p>
         </div>
-        <div className="kpi-card">
-          <span className="kpi-label">Tender Count</span>
-          <span className="kpi-value">{PLACEHOLDER_AGENCY_SUMMARY.tender_count}</span>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-label">Total Award Amount</span>
-          <span className="kpi-value">
-            {formatMoney(PLACEHOLDER_AGENCY_SUMMARY.total_award_amount)}
-          </span>
-        </div>
-      </section>
-
-      <p className="exclusion-note">
-        {PLACEHOLDER_AGENCY_SUMMARY.excluded_no_supplier_tender_count} tenders without a
-        named supplier were excluded from this analysis.
-      </p>
-
-      <Card title="Suppliers">
-        <PlaceholderNotice />
-        <p className="pagination-note">
-          The date range is not applied to the placeholder rows because the sample data
-          carries no award dates. Real period filtering arrives with the API response.
-        </p>
 
         {rows.length === 0 ? (
-          <p className="empty-state">No suppliers match the current filters.</p>
+          <EmptyState title="No suppliers found">
+            No suppliers match the current filters.
+          </EmptyState>
         ) : (
           <div className="table-scroll">
-            <table className="data-table">
+            <table className="table">
               <thead>
                 <tr>
                   <th scope="col">Supplier</th>
                   <th scope="col" className="cell-number">
-                    Total Award Amount
+                    Total award amount
                   </th>
                   <th scope="col" className="cell-number">
-                    Tender Count
+                    Tender count
                   </th>
                   <th scope="col" className="cell-number">
                     Share
@@ -224,13 +238,13 @@ export default function AgencyAwardsPage() {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.supplier_name}>
-                    <td>{row.supplier_name}</td>
+                    <td className="cell-primary">{row.supplier_name}</td>
                     <td className="cell-number">{formatMoney(row.total_award_amount)}</td>
                     <td className="cell-number">{row.tender_count}</td>
                     <td className="cell-number">{formatPercent(row.share_percent)}</td>
                     <td>
                       {row.company_link.status === 'accepted' ? (
-                        <StatusBadge tone="positive">Linked</StatusBadge>
+                        <StatusBadge tone="success">Linked</StatusBadge>
                       ) : (
                         <StatusBadge tone="neutral">Not linked</StatusBadge>
                       )}
@@ -242,43 +256,21 @@ export default function AgencyAwardsPage() {
           </div>
         )}
 
-        <div className="pagination">
-          <span className="pagination-summary">
-            Showing {rows.length} {rows.length === 1 ? 'result' : 'results'} on this page
-          </span>
-          <div className="pagination-controls">
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={!hasPrevious}
-              onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={!hasNext}
-              onClick={() => setOffset((current) => current + PAGE_SIZE)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-
-        <p className="pagination-note">
-          Suppliers without an accepted company link stay visible and show a null company
-          identity, which is the behaviour the API defines.
-          {submitted.aboveAverageOnly && (
-            <>
-              {' '}
-              Above-average filtering keeps suppliers whose total is strictly greater than
-              the average across all suppliers in the filtered result
-              {allSuppliers.length > 0 && <> ({formatMoney(averageTotal.toFixed(2))})</>}.
-            </>
+        <PanelFooter>
+          <Pagination
+            count={rows.length}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+            onNext={() => setOffset((current) => current + PAGE_SIZE)}
+          />
+          {!isLiveData(result) && (
+            <PanelNotes>
+              <PlaceholderNotice />
+            </PanelNotes>
           )}
-        </p>
-      </Card>
+        </PanelFooter>
+      </Panel>
     </>
   )
 }

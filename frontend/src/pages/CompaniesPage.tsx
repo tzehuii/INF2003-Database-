@@ -8,13 +8,27 @@
  * so the layout remains reviewable.
  */
 
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { API_ROUTES, isSupplierMatchingNotReady } from '../api/client'
+import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { API_ROUTES, isLiveData, isSupplierMatchingNotReady } from '../api/client'
 import type { CompaniesData, CompanySummary } from '../api/client'
 import { PLACEHOLDER_COMPANIES, PLACEHOLDER_COMPANY_STATUSES } from '../api/mockData'
 import { useApiResource } from '../api/useApiResource'
-import { BackendStatusStrip, Card, LinkedAwardBadge, PageHeading, PlaceholderNotice } from '../components/ui'
+import {
+  BackendStatusStrip,
+  EmptyState,
+  LinkedAwardBadge,
+  PageHeading,
+  Pagination,
+  Panel,
+  PanelFooter,
+  PanelNotes,
+  PlaceholderNotice,
+  RegistryStatusBadge,
+  SampleDataBadge,
+  SearchInput,
+  ToggleChip,
+} from '../components/ui'
 import { EMPTY_VALUE, formatDate } from '../format'
 
 /** Page size for the offset pagination the API uses. */
@@ -88,8 +102,6 @@ function applyPlaceholderFilters(rows: CompanySummary[], filters: Filters): Comp
 }
 
 export default function CompaniesPage() {
-  const navigate = useNavigate()
-
   const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
   const [submitted, setSubmitted] = useState<Filters>(EMPTY_FILTERS)
   const [offset, setOffset] = useState(0)
@@ -120,6 +132,15 @@ export default function CompaniesPage() {
   const supplierMatchingBlocked =
     result !== null && isSupplierMatchingNotReady(result)
 
+  // The 409 hint stays until live rows prove supplier matching is ready: every
+  // returned row must carry a non-null `has_linked_award`.
+  const linkedAwardHintId = useId()
+  const linkedAwardReady =
+    isLiveData(result) &&
+    result.body.items.length > 0 &&
+    result.body.items.every((item) => item.has_linked_award !== null)
+  const showLinkedAwardHint = supplierMatchingBlocked || !linkedAwardReady
+
   function toggleStatus(status: string) {
     setDraft((current) => ({
       ...current,
@@ -144,150 +165,141 @@ export default function CompaniesPage() {
   return (
     <>
       <PageHeading
+        icon="companies"
         title="Companies"
         description="Search Singapore companies by UEN or name and filter by registry status."
       />
 
-      <Card title="Search">
-        <form onSubmit={runSearch}>
-          <div className="filter-grid">
-            <label className="field field-wide">
-              <span className="field-label">UEN or company name</span>
-              <input
-                type="search"
-                className="field-input"
-                placeholder="For example 201234567A or a company name"
-                value={draft.q}
-                onChange={(event) => setDraft({ ...draft, q: event.target.value })}
-              />
-              <span className="field-hint">
-                Search matches an exact UEN or literal text in the current and former
-                company names. Enter at least {MIN_SEARCH_LENGTH} characters.
-              </span>
-              {hasTextBelowMinimum(draft) && (
-                <span className="field-warning">
-                  Search text shorter than {MIN_SEARCH_LENGTH} characters is rejected by
-                  the backend with HTTP 422 invalid_search.
-                </span>
-              )}
-            </label>
-
-            <fieldset className="field field-statuses">
-              <legend className="field-label">Registry status</legend>
-              <div className="checkbox-list">
-                {PLACEHOLDER_COMPANY_STATUSES.map((status) => (
-                  <label key={status} className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={draft.statuses.includes(status)}
-                      onChange={() => toggleStatus(status)}
-                    />
-                    <span>{status}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+      <Panel title="Results" badge={!isLiveData(result) ? <SampleDataBadge /> : undefined}>
+        <form className="toolbar" onSubmit={runSearch}>
+          <div className="toolbar-row">
+            <SearchInput
+              aria-label="UEN or company name"
+              placeholder={`Search UEN or company name (at least ${MIN_SEARCH_LENGTH} characters)`}
+              value={draft.q}
+              onChange={(event) => setDraft({ ...draft, q: event.target.value })}
+            />
+            <div className="toolbar-end">
+              <button type="submit" className="button button-primary">
+                Search
+              </button>
+              <button type="button" className="button button-secondary" onClick={clearFilters}>
+                Clear Filters
+              </button>
+            </div>
           </div>
 
-          <div className="linked-award-row">
+          {hasTextBelowMinimum(draft) ? (
+            <p className="field-warning">
+              Enter at least {MIN_SEARCH_LENGTH} characters (shorter text is rejected with HTTP
+              422).
+            </p>
+          ) : (
+            <p className="field-hint">
+              Exact UEN, or part of a current or former name. At least {MIN_SEARCH_LENGTH}{' '}
+              characters.
+            </p>
+          )}
+
+          <div className="toolbar-row">
+            <div className="chip-group" role="group" aria-label="Registry status">
+              <span className="field-label" aria-hidden="true">
+                Registry status
+              </span>
+              {PLACEHOLDER_COMPANY_STATUSES.map((status) => (
+                <ToggleChip
+                  key={status}
+                  pressed={draft.statuses.includes(status)}
+                  onClick={() => toggleStatus(status)}
+                >
+                  {status}
+                </ToggleChip>
+              ))}
+            </div>
+          </div>
+
+          <div className="filter-option">
             <label className="checkbox-item">
               <input
                 type="checkbox"
                 checked={draft.requireLinkedAward}
+                aria-describedby={showLinkedAwardHint ? linkedAwardHintId : undefined}
                 onChange={(event) =>
                   setDraft({ ...draft, requireLinkedAward: event.target.checked })
                 }
               />
               <span>Require linked award</span>
             </label>
-            <p className="inline-note">
-              Unavailable. Accepted supplier-company links are not ready, so the
-              backend blocks this filter with HTTP 409
-              <code> supplier_matching_not_ready</code>.
-            </p>
-          </div>
+            {showLinkedAwardHint && (
+              <p className="field-hint" id={linkedAwardHintId}>
+                Unavailable until supplier matching is ready. The backend blocks this filter
+                with HTTP 409 <code>supplier_matching_not_ready</code>.
+              </p>
+            )}
+          </div>        </form>
 
-          <div className="form-actions">
-            <button type="submit" className="button button-primary">
-              Search
-            </button>
-            <button type="button" className="button button-secondary" onClick={clearFilters}>
-              Clear Filters
-            </button>
-          </div>
-        </form>
-      </Card>
-
-      <BackendStatusStrip
-        route={API_ROUTES.companies}
-        result={result}
-        isLoading={isLoading}
-        note={
-          textBelowMinimum
-            ? `The backend requires at least ${MIN_SEARCH_LENGTH} characters in the search text, because a one-character substring returns nothing useful. It rejects a shorter value with HTTP 422 invalid_search.`
-            : !canRequest
-              ? 'No request has been sent yet. The API rejects a company search that supplies no usable filter, so enter at least two characters of a UEN or name, or choose a registry status, and press Search.'
-              : supplierMatchingBlocked
-                ? 'Remove the linked-award requirement to search companies without that filter.'
-                : undefined
-        }
-      />
-
-      <Card title="Results">
-        <PlaceholderNotice />
+        <BackendStatusStrip
+          route={API_ROUTES.companies}
+          result={result}
+          isLoading={isLoading}
+          note={
+            textBelowMinimum
+              ? `Enter at least ${MIN_SEARCH_LENGTH} characters.`
+              : !canRequest
+                ? 'Enter a UEN or name, choose a status, or tick Require linked award, then press Search.'
+                : supplierMatchingBlocked
+                  ? 'Remove the linked-award requirement to search companies without that filter.'
+                  : undefined
+          }
+        />
 
         {rows.length === 0 ? (
-          <p className="empty-state">No companies match the current filters on this page.</p>
+          <EmptyState title="No companies found">
+            No companies match the current filters on this page.
+          </EmptyState>
         ) : (
           <div className="table-scroll">
-            <table className="data-table">
+            <table className="table">
               <thead>
                 <tr>
+                  <th scope="col">Company name</th>
                   <th scope="col">UEN</th>
-                  <th scope="col">Company Name</th>
-                  <th scope="col">Registry Status</th>
-                  <th scope="col">Incorporation Date</th>
-                  <th scope="col">Primary Activity</th>
-                  <th scope="col">Linked Award</th>
-                  <th scope="col" className="cell-actions">
-                    <span className="visually-hidden">Open</span>
-                  </th>
+                  <th scope="col">Registry status</th>
+                  <th scope="col">Incorporation date</th>
+                  <th scope="col">Primary activity</th>
+                  <th scope="col">Linked award</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.uen}>
-                    <td className="cell-uen">
-                      <Link to={`/companies/${encodeURIComponent(row.uen)}`}>{row.uen}</Link>
+                    <td className="cell-primary">
+                      <Link
+                        className="row-link"
+                        to={`/companies/${encodeURIComponent(row.uen)}`}
+                      >
+                        {row.name ?? row.uen}
+                      </Link>
                     </td>
-                    <td>{row.name ?? EMPTY_VALUE}</td>
+                    <td className="cell-id">{row.uen}</td>
                     <td>
-                      <span className="status-text">{row.status}</span>
+                      <RegistryStatusBadge status={row.status} />
                     </td>
                     <td className="cell-nowrap">{formatDate(row.incorporation_date)}</td>
                     <td>
                       {row.primary_activity ? (
-                        <span className="activity-cell">
-                          <span className="activity-code">{row.primary_activity.code ?? EMPTY_VALUE}</span>
-                          <span className="activity-title">
-                            {row.primary_activity.title ?? EMPTY_VALUE}
-                          </span>
+                        <span className="activity-line">
+                          <span className="activity-code">
+                            {row.primary_activity.code ?? EMPTY_VALUE}
+                          </span>{' '}
+                          {row.primary_activity.title ?? EMPTY_VALUE}
                         </span>
                       ) : (
-                        EMPTY_VALUE
+                        <span className="empty-value">{EMPTY_VALUE}</span>
                       )}
                     </td>
                     <td>
                       <LinkedAwardBadge hasLinkedAward={row.has_linked_award} />
-                    </td>
-                    <td className="cell-actions">
-                      <button
-                        type="button"
-                        className="button button-link"
-                        onClick={() => navigate(`/companies/${encodeURIComponent(row.uen)}`)}
-                      >
-                        View
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -296,36 +308,23 @@ export default function CompaniesPage() {
           </div>
         )}
 
-        <div className="pagination">
-          <span className="pagination-summary">
-            Showing {rows.length} {rows.length === 1 ? 'result' : 'results'} on this page
-          </span>
-          <div className="pagination-controls">
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={!hasPrevious}
-              onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className="button button-secondary"
-              disabled={!hasNext}
-              onClick={() => setOffset((current) => current + PAGE_SIZE)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-
-        <p className="pagination-note">
-          Pagination uses <code>limit</code>, <code>offset</code>,{' '}
-          <code>has_more</code>, and <code>next_offset</code>. The API does not return a total
-          result count, so no total is shown.
-        </p>
-      </Card>
+        <PanelFooter>
+          <Pagination
+            count={rows.length}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+            onNext={() => setOffset((current) => current + PAGE_SIZE)}
+          />
+          {/* Pagination uses limit/offset/has_more/next_offset. The API returns no total
+              count, so none is shown. */}
+          {!isLiveData(result) && (
+            <PanelNotes>
+              <PlaceholderNotice />
+            </PanelNotes>
+          )}
+        </PanelFooter>
+      </Panel>
     </>
   )
 }
