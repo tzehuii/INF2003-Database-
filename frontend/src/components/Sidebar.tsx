@@ -21,6 +21,18 @@ const NAVIGATION_ITEMS: NavItem[] = [
   { to: '/saved-lists', label: 'Saved Lists', icon: 'saved', soon: false },
 ]
 
+/** BTA logo: three rising bars read as both a skyline (business) and a chart (analytics). */
+function BrandMark() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#233d80" />
+      <rect x="7" y="17" width="4.5" height="8" rx="1" fill="#fff" />
+      <rect x="13.75" y="12" width="4.5" height="13" rx="1" fill="#fff" />
+      <rect x="20.5" y="7" width="4.5" height="18" rx="1" fill="#9db4ff" />
+    </svg>
+  )
+}
+
 export default function Sidebar() {
   const { pathname } = useLocation()
   const inSystem = isSystemPath(pathname)
@@ -34,12 +46,15 @@ export default function Sidebar() {
     : NAVIGATION_ITEMS
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" aria-label="Business and Tender Analytics">
       <div className="sidebar-brand">
         <span className="sidebar-brand-mark">
-          <Icon name="logo" size={24} />
+          <BrandMark />
         </span>
-        <span className="sidebar-brand-name rail-hidden">ProjectApp</span>
+        <span className="sidebar-brand-text rail-hidden">
+          <span className="sidebar-brand-name">BTA</span>
+          <span className="sidebar-brand-full">Business &amp; Tender Analytics</span>
+        </span>
       </div>
 
       <ViewSelector />

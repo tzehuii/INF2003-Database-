@@ -212,12 +212,21 @@ export function LinkedAwardBadge({ hasLinkedAward }: { hasLinkedAward: boolean |
 
 /** Registry status as a badge. The wording is the registry's own. */
 export function RegistryStatusBadge({ status }: { status: string }) {
-  const tone: BadgeTone =
-    status === 'Live Company' ? 'success' : status === 'In Liquidation' ? 'warning' : 'neutral'
+  // Check inactive wording first: imported statuses can include "Live (Dissolved)".
+  const value = status.trim().toLowerCase()
+  const colour = /dissolv|struck off/.test(value) ? 'purple'
+    : /terminat/.test(value) ? 'grey'
+    : /cancel|withdraw|revok/.test(value) ? 'red'
+    : /ceased|closed/.test(value) ? 'orange'
+    : /liquidat|striking off|pending|receivership/.test(value) ? 'amber'
+    : /^live|^active|^registered$/.test(value) ? 'green'
+    : 'cyan'
+
   return (
-    <StatusBadge tone={tone} dot>
+    <span className={`badge registry-status registry-status-${colour}`}>
+      <span className="badge-dot" aria-hidden="true" />
       {status}
-    </StatusBadge>
+    </span>
   )
 }
 

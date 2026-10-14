@@ -1,4 +1,4 @@
-# ProjectApp
+# BTA: Business and Tender Analytics
 
 Business and Tender Analytics using MariaDB, MongoDB, FastAPI and React.
 

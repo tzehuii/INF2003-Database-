@@ -21,6 +21,7 @@ import CreatePage from './pages/businessActivities/CreatePage'
 import DetailPage from './pages/businessActivities/DetailPage'
 import SavedListsPage from './pages/SavedListsPage'
 import SystemSectionPage from './pages/SystemSectionPage'
+import CompaniesAddressesPage from './pages/CompaniesAddressesPage'
 import { DEFAULT_SYSTEM_PATH } from './systemSections'
 
 function AppLayout() {
@@ -46,6 +47,7 @@ function AppLayout() {
               <Route path="new" element={<CreatePage />} />
               <Route path=":code" element={<DetailPage />} />
             </Route>
+            <Route path="/system/companies-addresses/*" element={<CompaniesAddressesPage />} />
             <Route path="/system/:section" element={<SystemSectionPage />} />
             <Route path="*" element={<Navigate to="/companies" replace />} />
           </Routes>

@@ -50,6 +50,14 @@ function defaultTrail(pathname: string): Crumb[] {
     ]
   }
 
+  const COMPANIES_ADDRESSES = `${SYSTEM_BASE_PATH}/companies-addresses`
+  if (path.startsWith(`${COMPANIES_ADDRESSES}/`)) {
+    return [
+      { label: 'Companies & Addresses', to: COMPANIES_ADDRESSES },
+      { label: decodeURIComponent(path.slice(COMPANIES_ADDRESSES.length + 1)), mono: true },
+    ]
+  }
+
   const section = SYSTEM_SECTIONS.find((item) => `${SYSTEM_BASE_PATH}/${item.slug}` === path)
   return [{ label: section ? section.label : 'Companies' }]
 }

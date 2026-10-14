@@ -16,6 +16,7 @@ from .databases import close_mongodb_client, create_mongodb_client
 from .routes.api import router as api_router
 from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
+from .routes.companies import router as companies_router
 
 
 @asynccontextmanager
@@ -40,3 +41,6 @@ app = FastAPI(title="INF2003 Business and Tender Analytics API", lifespan=lifesp
 app.include_router(health_router)
 app.include_router(api_router)
 app.include_router(business_activities_router)
+
+# Company and address maintenance for the System view.
+app.include_router(companies_router)

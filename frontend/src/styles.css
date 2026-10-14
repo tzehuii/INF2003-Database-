@@ -3,9 +3,9 @@
 
    One token set, one rule per component. Plain CSS, no framework.
 
-   Hierarchy comes from type and spacing, not boxes: panels are flat with
-   hairline borders, there is one accent colour, and primary actions are ink.
-   Colour is kept for meaning (status, and the selected database in the shell).
+   Blue accents connect navigation and primary actions. Soft grey surfaces
+   distinguish the workspace from white panels; status and database colours
+   retain their own meanings.
 
    Contents
      1. Tokens
@@ -26,15 +26,15 @@
 
 :root {
   /* Surfaces */
-  --canvas: #f7f7f8;
+  --canvas: #f3f5fc;
   --surface: #ffffff;
-  --surface-subtle: #fafafb;
-  --surface-hover: #f1f1f3;
+  --surface-subtle: #f5f7ff;
+  --surface-hover: #e9eefc;
 
   /* Lines */
-  --border: #e6e6ea;
-  --border-control: #8a8a94;
-  --border-button: #d4d4da;
+  --border: #dce3f2;
+  --border-control: #909bb8;
+  --border-button: #cbd5eb;
 
   /* Text */
   --text-primary: #18181b;
@@ -42,12 +42,12 @@
   --text-tertiary: #6b6b76;
 
   /* Actions */
-  --ink: #18181b;
-  --ink-hover: #3f3f46;
+  --ink: #365bc5;
+  --ink-hover: #29469e;
   --ink-text: #ffffff;
-  --accent: #3e5bd8;
-  --accent-subtle: #eef1fd;
-  --accent-ring: rgba(62, 91, 216, 0.2);
+  --accent: #365bc5;
+  --accent-subtle: #e9efff;
+  --accent-ring: rgba(54, 91, 197, 0.2);
 
   /* Status */
   --success: #15803d;
@@ -2089,3 +2089,167 @@ input[type="checkbox"] {
     transition: none !important;
   }
 }
+
+
+/* Workspace theme: blue accents for navigation and primary actions.
+   These rules affect every page, not only Companies & Addresses. */
+.sidebar { background: #f8f9ff; }
+.sidebar-brand-name { color: #233d80; }
+.sidebar-link-active, .sidebar-link-active:hover {
+  background: #e5edff;
+  color: #29469e;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.sidebar-link-active .icon { color: #365bc5; }
+.segmented-full .segmented-option-active,
+.segmented-full .segmented-option-active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.segmented-full .segmented-option-active .icon { color: #fff; }
+.panel { box-shadow: 0 2px 8px rgba(43, 64, 126, 0.05); }
+.panel-head { background: #f4f6ff; }
+.panel-title { color: #2d4481; }
+.page-title { color: #243564; }
+.table th { background: #eaf0ff; color: #394f85; }
+.table tbody tr:hover td { background: #f1f5ff; }
+
+/* Allow wrapped sidebar labels to grow with comfortable spacing. */
+.sidebar-list { gap: 6px; }
+.sidebar-link {
+  height: auto;
+  min-height: 40px;
+  padding: 10px 12px;
+  line-height: 22px;
+  gap: 10px;
+}
+.sidebar-link .icon { flex-shrink: 0; }
+
+/* Keep navigation and selection changes soft without delaying interactions. */
+.sidebar-link, .segmented-option, .button {
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.table td { transition: background-color 160ms ease; }
+
+
+/* System company and address maintenance (CompaniesAddressesPage). */
+
+/* Forms and filters: two columns on wide screens, one on narrow screens. */
+.company-form-grid { border: 0; margin: 0; padding: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.company-form-grid .field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+.company-form-grid .field small, .company-note { color: var(--text-secondary); font-size: 12px; }
+.company-form-grid > .company-actions { grid-column: 1 / -1; }
+/* Date inputs fill their column like the other fields (the global rule fixes them at 152px). */
+.company-form-grid input[type="date"].input { width: 100%; }
+.company-filters { border-bottom: 1px solid var(--border); }
+/* Form errors line up with the 24px field gutter instead of touching the panel edges. */
+.company-form-error { margin: 0 24px 18px; }
+.company-save-target { padding: 14px 24px; background: #edf2ff; color: #29469e; border-bottom: 1px solid var(--border); font-size: 13px; }
+.company-form-grid .field .address-field-error { color: #b91c1c; }
+.input[aria-invalid="true"] { border-color: #b91c1c; background: #fff8f8; }
+
+/* Action rows and button colours: blue navigates, grey edits or cancels, red deletes, green saves. */
+.company-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.address-form-actions { padding: 18px 24px; gap: 12px; }
+.address-form-actions .button { min-height: 38px; padding: 8px 18px; }
+.company-navigation-button { background: var(--accent); color: #fff; border: 2px solid var(--accent); }
+.company-navigation-button:hover:not(:disabled), .company-navigation-button:focus-visible {
+  background: #fff; color: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.company-navigation-button:active:not(:disabled) { background: var(--accent-subtle); }
+.company-delete-button { background: #b91c1c; color: #fff; border: 2px solid #b91c1c; }
+.company-delete-button:hover:not(:disabled), .company-delete-button:focus-visible {
+  background: #fff; color: #b91c1c; border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.15);
+}
+.company-edit-button, .company-cancel-button { background: #4b5563; color: #fff; border: 2px solid #4b5563; }
+.company-edit-button:hover:not(:disabled), .company-edit-button:focus-visible,
+.company-cancel-button:hover:not(:disabled), .company-cancel-button:focus-visible {
+  background: #fff; color: #374151; border-color: #4b5563;
+  box-shadow: 0 0 0 3px rgba(75, 85, 99, 0.15);
+}
+.address-save-button { background: #15803d; color: #fff; border: 2px solid #15803d; }
+.address-save-button:hover:not(:disabled), .address-save-button:focus-visible {
+  background: #fff; color: #166534; border-color: #15803d;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+}
+
+/* Company detail summary and address cards. */
+.company-screen-heading:focus { outline: none; }
+.company-detail { padding: 24px; }
+.company-summary, .company-address-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; }
+.company-detail dt { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+.company-detail dd { margin: 0; overflow-wrap: anywhere; }
+.company-address-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.company-address-heading h3 { color: #2d4481; }
+.company-address-card { background: #f7f9ff; border: 1px solid var(--border); border-radius: 6px; padding: 18px; margin-top: 12px; }
+.company-address-values { margin-bottom: 16px; }
+
+/* Directory table. The results area keeps a fixed height so loading does not make the page jump. */
+html { scrollbar-gutter: stable; }
+.company-results-region { position: relative; height: clamp(360px, 58vh, 680px); overflow: auto; overscroll-behavior: contain; overflow-anchor: none; }
+.company-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.company-table thead { position: sticky; top: 0; z-index: 1; }
+.company-table th { font-size: 12px; background: #eaf0ff; color: #394f85; }
+.company-table th, .company-table td { padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.company-table td:first-child { color: #365bc5; font-variant-numeric: tabular-nums; }
+.company-table td:nth-child(2) { min-width: 210px; }
+.company-table td:last-child { white-space: nowrap; }
+.company-table .badge { white-space: nowrap; }
+.company-table tbody tr:hover td { background: #f1f5ff; }
+.company-recent-row td { background: #f1f2f4; }
+.company-recent-row td:first-child { box-shadow: inset 3px 0 0 #6b7280; }
+.company-table tbody .company-recent-row:hover td { background: #e7e9ed; }
+.company-recent-label { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; color: #4b5563; }
+/* The loading label floats over the old rows so table size and scroll stay the same. */
+.company-table-loading { position: absolute; top: 8px; right: 12px; z-index: 3; pointer-events: none; }
+.company-table-loading span {
+  display: inline-block; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: #fff; color: var(--accent); box-shadow: 0 3px 12px rgba(36, 53, 100, 0.08);
+}
+.company-results-region[aria-busy="true"] .button:disabled { opacity: 1; }
+
+/* Pagination footer with a compact page-number input (Enter submits). */
+.company-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; }
+.company-page-jump { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.company-page-jump .input { width: 90px; min-width: 0; height: 34px; }
+.company-page-jump span { color: var(--text-secondary); }
+
+/* Registry status colours retain readable text and a matching dot. */
+.registry-status { border: 1px solid transparent; white-space: nowrap; }
+.registry-status-green { color: #166534; background: #ecfdf3; border-color: #bbebce; }
+.registry-status-red { color: #a82020; background: #fff0f0; border-color: #f5caca; }
+.registry-status-orange { color: #9a3e09; background: #fff3e8; border-color: #f5d4b3; }
+.registry-status-purple { color: #6b35a3; background: #f4edff; border-color: #dfcdf5; }
+.registry-status-amber { color: #855500; background: #fff8db; border-color: #eddda3; }
+.registry-status-grey { color: #4b5563; background: #f1f2f4; border-color: #d1d5db; }
+.registry-status-cyan { color: #0e6373; background: #e5f8fb; border-color: #a8e0e9; }
+
+/* Optional key explains status meanings without taking space from the directory. */
+.status-legend { padding: 12px 24px; border-bottom: 1px solid var(--border); }
+.status-legend summary { cursor: pointer; color: var(--text-secondary); font-size: 13px; }
+.status-legend-items { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 12px; }
+.status-legend-note { margin-top: 10px; color: var(--text-secondary); font-size: 12px; }
+
+/* Status options open below the input and scroll inside their own menu. */
+.status-picker { position: relative; min-width: 0; }
+.status-picker summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
+.status-picker summary::-webkit-details-marker { display: none; }
+.status-options { position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 30; max-height: 220px; overflow-y: auto; margin: 0; padding: 5px; list-style: none; border: 1px solid var(--border-control); border-radius: 6px; background: #fff; box-shadow: 0 8px 24px rgba(36, 53, 100, 0.14); }
+.status-options button { display: block; width: 100%; border: 0; background: #fff; text-align: left; padding: 8px 10px; cursor: pointer; }
+.status-options button:hover, .status-options button:focus-visible, .status-options button[aria-pressed="true"] { background: #e9efff; color: #29469e; }
+.panel:has(.status-picker[open]) { overflow: visible; position: relative; z-index: 5; }
+
+@media (max-width: 800px) {
+  .company-form-grid, .company-summary, .company-address-values { grid-template-columns: 1fr; }
+  .company-pagination { flex-wrap: wrap; }
+  .company-form-error { margin: 0 16px 16px; }
+}
+
+/* BTA brand: short name with the full name underneath. */
+.sidebar-brand { height: auto; min-height: 32px; gap: 10px; }
+.sidebar-brand-text { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-brand-name { font-size: 16px; font-weight: 700; line-height: 20px; letter-spacing: 0.04em; }
+.sidebar-brand-full { font-size: 11px; line-height: 14px; color: var(--text-secondary); white-space: nowrap; }
