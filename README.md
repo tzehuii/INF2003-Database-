@@ -42,6 +42,18 @@ mongorestore --uri="mongodb://127.0.0.1:27017" --gzip --archive="C:\ProjectApp-d
 
 No separate supplier-matching step is required after restoring the supplied archive.
 
+## Updating an existing database
+
+Existing MariaDB databases need the saved-company timestamp column for Recently saved sorting. Run this migration once, using your local host, port, and account:
+
+```powershell
+mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source sql/20261016_saved_company_timestamps.sql"
+```
+
+The migration preserves existing data and is safe to run again. Older bookmarks receive the migration time; new bookmarks record when they are saved. MongoDB already stores bookmark creation times and needs no migration.
+
+Public pages now read the selected database. Saved Companies supports bookmarking, search, sorting, removal, and a ten-second Undo option. Each browser remembers its own list separately for MariaDB and MongoDB.
+
 ## Dependencies
 
 ```powershell

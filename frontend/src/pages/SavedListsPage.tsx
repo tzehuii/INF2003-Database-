@@ -1,480 +1,66 @@
-/**
- * Saved Lists page.
- *
- * Create saved company lists and track review status.
- *
- * Two panels are shown: a list navigator on the left and the selected list on
- * the right. Companies are added by UEN, because the saved-list API does not
- * support adding by company name, and no update timestamps are shown because
- * none are returned.
- *
- * All list changes here are local to this page session and reset on reload. The
- * saved-list routes are declared but still return HTTP 501, so persistence is
- * not functional yet.
- */
-
-import { useState } from 'react'
-import { API_ROUTES, isLiveData } from '../api/client'
-import type { ReviewStatus, SavedListDetail, SavedListSummary } from '../api/client'
-import {
-  PLACEHOLDER_SAVED_LIST_ENTRIES,
-  PLACEHOLDER_SAVED_LISTS,
-} from '../api/mockData'
-import { useApiResource } from '../api/useApiResource'
-import {
-  BackendStatusStrip,
-  ConfirmationBanner,
-  EmptyState,
-  PageHeading,
-  Panel,
-  PanelFooter,
-  PanelNotes,
-  PlaceholderNotice,
-  RegistryStatusBadge,
-  SampleDataBadge,
-  StatusBadge,
-} from '../components/ui'
-import { EMPTY_VALUE, REVIEW_STATUS_OPTIONS, formatReviewStatus } from '../format'
-
-type SavedListsData = { items: SavedListSummary[] }
-
-type PageMessage = { text: string; tone: 'success' | 'warning' }
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { BookmarkError, useBookmarks } from '../api/bookmarks'
+import type { SavedListEntry } from '../api/client'
+import { EmptyState, PageHeading, Panel, RegistryStatusBadge, SearchInput } from '../components/ui'
 
 export default function SavedListsPage() {
-  const [lists, setLists] = useState<SavedListSummary[]>(PLACEHOLDER_SAVED_LISTS)
-  const [entriesById, setEntriesById] =
-    useState<Record<string, SavedListDetail>>(PLACEHOLDER_SAVED_LIST_ENTRIES)
-  const [selectedId, setSelectedId] = useState<string>(PLACEHOLDER_SAVED_LISTS[0]?.id ?? '')
+  const { entries, loading, pending, save, remove, reload } = useBookmarks()
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('recent')
+  const [removed, setRemoved] = useState<SavedListEntry | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const active = useRef(true)
 
-  const [newListName, setNewListName] = useState('')
-  const [renameValue, setRenameValue] = useState('')
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [newEntryUen, setNewEntryUen] = useState('')
-  const [newEntryStatus, setNewEntryStatus] = useState<ReviewStatus>('to_check')
-  const [pageMessage, setPageMessage] = useState<PageMessage | null>(null)
+  useEffect(() => {
+    active.current = true
+    reload()
+    return () => { active.current = false }
+  }, [reload])
 
-  const { result, isLoading } = useApiResource<SavedListsData>(API_ROUTES.savedLists)
+  useEffect(() => {
+    if (!removed || restoring) return
+    const timer = window.setTimeout(() => setRemoved(null), 10000)
+    return () => window.clearTimeout(timer)
+  }, [removed, restoring])
 
-  const selectedList = lists.find((list) => list.id === selectedId) ?? null
-  const selectedDetail = selectedList ? entriesById[selectedList.id] ?? null : null
-  const entries = selectedDetail?.entries ?? []
-
-  function showMessage(text: string, tone: PageMessage['tone'] = 'success') {
-    setPageMessage({ text, tone })
+  async function removeCompany(entry: SavedListEntry) {
+    if (await remove(entry.company_uen)) {
+      if (active.current) setRemoved(entry)
+    }
   }
 
-  function createList(event: React.FormEvent) {
-    event.preventDefault()
-    const name = newListName.trim()
-
-    if (name === '') {
-      showMessage('A saved-list name must not be blank.', 'warning')
-      return
+  async function undoRemove() {
+    if (!removed) return
+    setRestoring(true)
+    const restored = await save(removed.company_uen)
+    if (active.current) {
+      if (restored) setRemoved(null)
+      setRestoring(false)
     }
-
-    // The same normalised-name rule the backend applies, so the preview does not
-    // allow two lists that differ only by case or surrounding whitespace.
-    const normalized = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    if (lists.some((list) => list.name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === normalized)) {
-      showMessage('A saved list with the same normalised name already exists.', 'warning')
-      return
-    }
-
-    const id = `local-list-${Date.now()}`
-    const created: SavedListSummary = { id, name, entry_count: 0 }
-    setLists((current) => [...current, created])
-    setEntriesById((current) => ({
-      ...current,
-      [id]: { id, name, entry_count: 0, entries: [] },
-    }))
-    setSelectedId(id)
-    setIsRenaming(false)
-    setNewListName('')
-    showMessage(`Created the list "${name}" in this preview session.`)
   }
 
-  function renameList(event: React.FormEvent) {
-    event.preventDefault()
-    if (!selectedList) {
-      return
-    }
-
-    const name = renameValue.trim()
-    if (name === '') {
-      showMessage('A saved-list name must not be blank.', 'warning')
-      return
-    }
-
-    setLists((current) =>
-      current.map((list) => (list.id === selectedList.id ? { ...list, name } : list)),
-    )
-    setEntriesById((current) => {
-      const detail = current[selectedList.id]
-      if (!detail) {
-        return current
+  const term = query.trim().toLocaleLowerCase()
+  const rows = entries.filter(entry => !term || entry.company_uen.toLocaleLowerCase().includes(term) || entry.company_name?.toLocaleLowerCase().includes(term))
+    .sort((a, b) => {
+      if (sort === 'recent') {
+        const difference = (Date.parse(b.saved_at ?? '') || 0) - (Date.parse(a.saved_at ?? '') || 0)
+        if (difference) return difference
       }
-      return { ...current, [selectedList.id]: { ...detail, name } }
+      return (a.company_name ?? a.company_uen).localeCompare(b.company_name ?? b.company_uen) || a.company_uen.localeCompare(b.company_uen)
     })
-    setRenameValue('')
-    setIsRenaming(false)
-    showMessage(`Renamed the list to "${name}" in this preview session.`)
-  }
 
-  function deleteList() {
-    if (!selectedList) {
-      return
-    }
-
-    const remaining = lists.filter((list) => list.id !== selectedList.id)
-    setLists(remaining)
-    setEntriesById((current) => {
-      const next = { ...current }
-      delete next[selectedList.id]
-      return next
-    })
-    setSelectedId(remaining[0]?.id ?? '')
-    setIsRenaming(false)
-    showMessage(
-      `Deleted the list "${selectedList.name}" in this preview session. Source companies are never deleted.`,
-    )
-  }
-
-  function addEntry(event: React.FormEvent) {
-    event.preventDefault()
-    if (!selectedList) {
-      showMessage('Create or select a list before adding a company.', 'warning')
-      return
-    }
-
-    const uen = newEntryUen.trim()
-    if (uen === '') {
-      showMessage('Enter a company UEN to add.', 'warning')
-      return
-    }
-
-    if (entries.some((entry) => entry.company_uen === uen)) {
-      showMessage(`${uen} is already in this list.`, 'warning')
-      return
-    }
-
-    // The company name is resolved from the company data source, not typed here,
-    // which matches the API's add-by-UEN behaviour.
-    const resolvedName = `(sample) Company ${uen}`
-    const nextEntry = {
-      company_uen: uen,
-      company_name: resolvedName,
-      company_status: 'Live Company',
-      review_status: newEntryStatus,
-    }
-
-    setEntriesById((current) => {
-      const detail = current[selectedList.id]
-      const base: SavedListDetail =
-        detail ?? { id: selectedList.id, name: selectedList.name, entry_count: 0, entries: [] }
-      const nextEntries = [...base.entries, nextEntry]
-      return {
-        ...current,
-        [selectedList.id]: { ...base, entries: nextEntries, entry_count: nextEntries.length },
-      }
-    })
-    setLists((current) =>
-      current.map((list) =>
-        list.id === selectedList.id ? { ...list, entry_count: list.entry_count + 1 } : list,
-      ),
-    )
-    setNewEntryUen('')
-    showMessage(`Added ${uen} to "${selectedList.name}" in this preview session.`)
-  }
-
-  function changeEntryStatus(uen: string, reviewStatus: ReviewStatus) {
-    if (!selectedList) {
-      return
-    }
-    setEntriesById((current) => {
-      const detail = current[selectedList.id]
-      if (!detail) {
-        return current
-      }
-      return {
-        ...current,
-        [selectedList.id]: {
-          ...detail,
-          entries: detail.entries.map((entry) =>
-            entry.company_uen === uen ? { ...entry, review_status: reviewStatus } : entry,
-          ),
-        },
-      }
-    })
-  }
-
-  function removeEntry(uen: string) {
-    if (!selectedList) {
-      return
-    }
-    setEntriesById((current) => {
-      const detail = current[selectedList.id]
-      if (!detail) {
-        return current
-      }
-      const nextEntries = detail.entries.filter((entry) => entry.company_uen !== uen)
-      return {
-        ...current,
-        [selectedList.id]: { ...detail, entries: nextEntries, entry_count: nextEntries.length },
-      }
-    })
-    setLists((current) =>
-      current.map((list) =>
-        list.id === selectedList.id
-          ? { ...list, entry_count: Math.max(0, list.entry_count - 1) }
-          : list,
-      ),
-    )
-  }
-
-  return (
-    <>
-      <PageHeading
-        icon="saved"
-        title="Saved Lists"
-        description="Create saved company lists and track the review status of each entry."
-      />
-
-      {pageMessage && (
-        <ConfirmationBanner tone={pageMessage.tone} onDismiss={() => setPageMessage(null)}>
-          {pageMessage.text}
-        </ConfirmationBanner>
-      )}
-
-      <BackendStatusStrip
-        route={API_ROUTES.savedLists}
-        result={result}
-        isLoading={isLoading}
-        variant="standalone"
-        note="Changes below are a local preview and reset on reload."
-      />
-
-      <div className="saved-layout">
-        <Panel title="Saved Lists" badge={!isLiveData(result) ? <SampleDataBadge /> : undefined}>
-          {lists.length === 0 ? (
-            <EmptyState title="No saved lists yet">Create one below.</EmptyState>
-          ) : (
-            <ul className="list-nav">
-              {lists.map((list) => (
-                <li key={list.id}>
-                  <button
-                    type="button"
-                    className="list-nav-item"
-                    aria-current={list.id === selectedId ? 'true' : undefined}
-                    onClick={() => {
-                      setSelectedId(list.id)
-                      setRenameValue('')
-                      setIsRenaming(false)
-                      setPageMessage(null)
-                    }}
-                  >
-                    <span className="list-nav-name">{list.name}</span>
-                    <span className="list-nav-count">
-                      {list.entry_count}
-                      <span className="visually-hidden"> entries</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <form className="list-nav-create" onSubmit={createList}>
-            <input
-              type="text"
-              className="input"
-              aria-label="New list name"
-              placeholder="New list name"
-              value={newListName}
-              onChange={(event) => setNewListName(event.target.value)}
-            />
-            <button type="submit" className="button button-secondary" aria-label="Create New List">
-              Create
-            </button>
-          </form>
-
-          {!isLiveData(result) && (
-            <PanelFooter>
-              <PanelNotes>
-                <PlaceholderNotice />
-              </PanelNotes>
-            </PanelFooter>
-          )}
-        </Panel>
-
-        {selectedList === null ? (
-          <Panel title="Selected List">
-            <EmptyState title="No list selected">
-              Select a saved list to see its entries.
-            </EmptyState>
-          </Panel>
-        ) : (
-          <Panel
-            title={
-              <>
-                {selectedList.name}
-                <span className="panel-count">{selectedList.entry_count} entries</span>
-              </>
-            }
-            actions={
-              <>
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  aria-expanded={isRenaming}
-                  onClick={() => {
-                    setIsRenaming((value) => !value)
-                    setRenameValue('')
-                  }}
-                >
-                  Rename
-                </button>
-                <button type="button" className="button button-danger" onClick={deleteList}>
-                  Delete List
-                </button>
-              </>
-            }
-          >
-            {isRenaming && (
-              <form className="toolbar" onSubmit={renameList}>
-                <div className="toolbar-row toolbar-row-fields">
-                  <label className="field field-grow">
-                    <span className="field-label">Rename List</span>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder={selectedList.name}
-                      value={renameValue}
-                      onChange={(event) => setRenameValue(event.target.value)}
-                      autoFocus
-                    />
-                  </label>
-                  <button type="submit" className="button button-secondary">
-                    Rename List
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() => {
-                      setIsRenaming(false)
-                      setRenameValue('')
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-
-            <form className="toolbar" onSubmit={addEntry}>
-              <div className="toolbar-row toolbar-row-fields">
-                <label className="field field-grow">
-                  <span className="field-label">Company UEN</span>
-                  <input
-                    type="text"
-                    className="input input-mono"
-                    placeholder="For example 201234567A"
-                    value={newEntryUen}
-                    onChange={(event) => setNewEntryUen(event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span className="field-label">Review Status</span>
-                  <select
-                    className="input"
-                    value={newEntryStatus}
-                    onChange={(event) =>
-                      setNewEntryStatus(event.target.value === 'reviewed' ? 'reviewed' : 'to_check')
-                    }
-                  >
-                    {REVIEW_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" className="button button-primary">
-                  Add Company
-                </button>
-              </div>
-              <p className="field-hint">Add companies by UEN.</p>
-            </form>
-
-            {entries.length === 0 ? (
-              <EmptyState title="No entries yet">This list has no entries yet.</EmptyState>
-            ) : (
-              <div className="table-scroll">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Company name</th>
-                      <th scope="col">Company UEN</th>
-                      <th scope="col">Company status</th>
-                      <th scope="col">Review status</th>
-                      <th scope="col" className="cell-actions">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.map((entry) => (
-                      <tr key={entry.company_uen}>
-                        <td className="cell-primary">{entry.company_name ?? EMPTY_VALUE}</td>
-                        <td className="cell-id">{entry.company_uen}</td>
-                        <td>
-                          {entry.company_status ? (
-                            <RegistryStatusBadge status={entry.company_status} />
-                          ) : (
-                            <span className="empty-value">{EMPTY_VALUE}</span>
-                          )}
-                        </td>
-                        <td>
-                          <StatusBadge
-                            tone={entry.review_status === 'reviewed' ? 'success' : 'warning'}
-                          >
-                            {formatReviewStatus(entry.review_status)}
-                          </StatusBadge>
-                        </td>
-                        <td className="cell-actions">
-                          <select
-                            className="input input-sm"
-                            aria-label={`Change status for ${entry.company_uen}`}
-                            value={entry.review_status}
-                            onChange={(event) =>
-                              changeEntryStatus(
-                                entry.company_uen,
-                                event.target.value === 'reviewed' ? 'reviewed' : 'to_check',
-                              )
-                            }
-                          >
-                            {REVIEW_STATUS_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="button button-ghost button-sm"
-                            onClick={() => removeEntry(entry.company_uen)}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Panel>
-        )}
-      </div>
-    </>
-  )
+  return <>
+    <PageHeading icon="saved" title="Saved companies" description="Your company bookmarks. Open a company to see its current details, or remove it whenever you like." actions={<Link className="button button-primary" to="/companies">Find companies</Link>} />
+    <BookmarkError />
+    {removed && <div className="banner banner-success" role="status"><p className="banner-text">Removed {removed.company_name ?? removed.company_uen}.</p><button type="button" className="button button-ghost button-sm" disabled={restoring || pending.includes(removed.company_uen)} onClick={() => void undoRemove()}>{restoring ? 'Restoring…' : 'Undo'}</button><button type="button" className="button button-ghost button-sm" disabled={restoring} aria-label="Dismiss removal message" onClick={() => setRemoved(null)}>Dismiss</button></div>}
+    <Panel title={`Saved companies (${entries.length})`}>
+      <div className="toolbar"><div className="toolbar-row toolbar-row-fields">
+        <SearchInput aria-label="Search saved companies" placeholder="Search saved companies by name or UEN" value={query} onChange={event => setQuery(event.target.value)} />
+        <label className="field"><span className="field-label">Sort by</span><select className="input" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">Recently saved</option><option value="name">Company name (A–Z)</option></select></label>
+        {query && <button type="button" className="button button-secondary" onClick={() => setQuery('')}>Clear search</button>}
+      </div></div>
+      {loading ? <p className="panel-pad" role="status">Loading saved companies…</p> : entries.length === 0 ? <EmptyState title="No saved companies yet">Click the bookmark icon beside a company to save it here.</EmptyState> : rows.length === 0 ? <EmptyState title="No matching saved companies">Try another name or UEN, or clear your search.</EmptyState> : <div className="table-scroll"><table className="table"><thead><tr><th>Company</th><th>UEN</th><th>Registry status</th><th>Action</th></tr></thead><tbody>{rows.map(entry => <tr key={entry.company_uen}><td className="cell-primary"><Link className="row-link" to={`/companies/${encodeURIComponent(entry.company_uen)}`}>{entry.company_name ?? entry.company_uen}</Link></td><td className="cell-id">{entry.company_uen}</td><td>{entry.company_status ? <RegistryStatusBadge status={entry.company_status} /> : 'Company no longer available'}</td><td><button type="button" className="button button-secondary button-sm" disabled={pending.includes(entry.company_uen)} onClick={() => void removeCompany(entry)}>{pending.includes(entry.company_uen) ? 'Removing…' : 'Remove'}</button></td></tr>)}</tbody></table></div>}
+    </Panel>
+  </>
 }

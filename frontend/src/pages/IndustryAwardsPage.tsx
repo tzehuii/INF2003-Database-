@@ -1,155 +1,35 @@
-/**
- * Industry Awards page.
- *
- * Compare tender awards across SSIC industry branches.
- *
- * The page is not blocked by supplier-matching readiness. Incomplete matching
- * affects coverage rather than availability, so the endpoint returns a normal
- * response and reports excluded rows through its coverage counts. A short note
- * states which awards the totals include.
- *
- * The result area stays empty until the endpoint returns real results. No
- * invented industry analytics and no data-backed chart are shown. A branch
- * ranking chart would duplicate the table, and the page avoids charts or metrics
- * the data does not support.
- *
- * Once the backend query is implemented, the table shows one row per immediate
- * child branch: the branch title, total award amount, award row count, company
- * count, and share percentage, ordered by total amount descending and industry
- * code ascending. The summary coverage counts report how many award rows are
- * excluded for lack of a usable company link or a valid primary SSIC.
- */
-
 import { useState } from 'react'
 import { API_ROUTES, isLiveData } from '../api/client'
-import type { IndustryAwardsData } from '../api/client'
-import { PLACEHOLDER_INDUSTRY_PARENTS } from '../api/mockData'
+import type { IndustriesData, IndustryAwardsData, IndustryItem } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
-import {
-  BackendStatusStrip,
-  EmptyState,
-  PageHeading,
-  Panel,
-  PanelFooter,
-  PanelNotes,
-} from '../components/ui'
-
-/** Explanation of what the industry totals include. */
-const COVERAGE_NOTE =
-  'Industry totals include matched suppliers with a valid primary SSIC. Unmatched suppliers are excluded.'
-
-type Filters = {
-  parentCode: string
-  startDate: string
-  endDate: string
-}
-
-const EMPTY_FILTERS: Filters = { parentCode: '', startDate: '', endDate: '' }
-
+import { EmptyState, PageHeading, Panel } from '../components/ui'
+import { formatMoney, formatPercent } from '../format'
+import { ResourceStatus } from './publicShared'
+const EMPTY = { parent: '', start: '', end: '' }
 export default function IndustryAwardsPage() {
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
-  const [submitted, setSubmitted] = useState<Filters>(EMPTY_FILTERS)
-
-  const requestKey = JSON.stringify(submitted)
-
-  const { result, isLoading } = useApiResource<IndustryAwardsData>(
-    API_ROUTES.industryAwards,
-    {
-      parent_code: submitted.parentCode || undefined,
-      start_date: submitted.startDate || undefined,
-      end_date: submitted.endDate || undefined,
-    },
-    requestKey,
-  )
-
-  function runSearch(event: React.FormEvent) {
-    event.preventDefault()
-    setSubmitted(draft)
+  const [draft, setDraft] = useState(EMPTY)
+  const [filters, setFilters] = useState(EMPTY)
+  const [path, setPath] = useState<IndustryItem[]>([])
+  const nodes = useApiResource<IndustriesData>(API_ROUTES.industries, { parent_code: draft.parent })
+  const { result, isLoading } = useApiResource<IndustryAwardsData>(API_ROUTES.industryAwards, { parent_code: filters.parent, start_date: filters.start, end_date: filters.end })
+  const data = isLiveData(result) ? result.body : null
+  function drill(node: IndustryItem) {
+    setPath(old => [...old, node]); setDraft(old => ({ ...old, parent: node.code })); setFilters(old => ({ ...old, parent: node.code }))
   }
-
-  function reset() {
-    setDraft(EMPTY_FILTERS)
-    setSubmitted(EMPTY_FILTERS)
-  }
-
-  return (
-    <>
-      <PageHeading
-        icon="industry"
-        title="Industry Awards"
-        description="Compare tender award totals across SSIC industry branches."
-      />
-
-      <Panel title="Industry Branch Results">
-        <form className="toolbar" onSubmit={runSearch}>
-          <div className="toolbar-row toolbar-row-fields">
-            <label className="field field-grow">
-              <span className="field-label">Industry / Parent</span>
-              <select
-                className="input"
-                value={draft.parentCode}
-                onChange={(event) => setDraft({ ...draft, parentCode: event.target.value })}
-              >
-                <option value="">All sections</option>
-                {PLACEHOLDER_INDUSTRY_PARENTS.map((parent) => (
-                  <option key={parent.code} value={parent.code}>
-                    {parent.code} — {parent.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span className="field-label">Start Date</span>
-              <input
-                type="date"
-                className="input"
-                value={draft.startDate}
-                onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">End Date</span>
-              <input
-                type="date"
-                className="input"
-                value={draft.endDate}
-                onChange={(event) => setDraft({ ...draft, endDate: event.target.value })}
-              />
-            </label>
-
-            <div className="toolbar-end">
-              <button type="submit" className="button button-primary">
-                Search
-              </button>
-              <button type="button" className="button button-secondary" onClick={reset}>
-                Reset
-              </button>
-            </div>
-          </div>
-        </form>
-
-        <BackendStatusStrip
-          route={API_ROUTES.industryAwards}
-          result={result}
-          isLoading={isLoading}
-        />
-
-        <EmptyState title="No results yet">
-          {!isLiveData(result) && 'Results appear here once the route is implemented.'}
-        </EmptyState>
-
-        <PanelFooter>
-          <PanelNotes>
-            <p>{COVERAGE_NOTE}</p>
-            <p>
-              Grouping is by section when no parent is selected, or by the immediate children
-              of the selected SSIC node.
-            </p>
-          </PanelNotes>
-        </PanelFooter>
-      </Panel>
-    </>
-  )
+  return <>
+    <PageHeading icon="industry" title="Industry Awards" description="Compare awards across industries. Select a branch to explore its children." />
+    <Panel title="Industry awards">
+      <form className="toolbar" onSubmit={e => { e.preventDefault(); setFilters(draft) }}><div className="toolbar-row toolbar-row-fields">
+        <label className="field field-grow"><span className="field-label">Industry branch</span><select className="input" value="" onChange={e => { const node = isLiveData(nodes.result) ? nodes.result.body.items.find(x => x.code === e.target.value) : null; if (node) drill(node) }}><option value="">{path.length ? 'Explore a child branch…' : 'Explore an industry section…'}</option>{isLiveData(nodes.result) && nodes.result.body.items.filter(x => x.has_children).map(x => <option key={x.code} value={x.code}>{x.code} — {x.title}</option>)}</select></label>
+        <label className="field"><span className="field-label">Start date</span><input className="input" type="date" value={draft.start} onChange={e => setDraft({ ...draft, start: e.target.value })} /></label><label className="field"><span className="field-label">End date</span><input className="input" type="date" min={draft.start || undefined} value={draft.end} onChange={e => setDraft({ ...draft, end: e.target.value })} /></label>
+        <button className="button button-primary">Search</button><button type="button" className="button button-secondary" onClick={() => { setDraft(EMPTY); setFilters(EMPTY); setPath([]) }}>Reset</button>
+      </div><div className="toolbar-row"><button type="button" className="button button-ghost button-sm" onClick={() => { setPath([]); setDraft(x => ({ ...x, parent: '' })); setFilters(x => ({ ...x, parent: '' })) }}>All sections</button>{path.map((node, index) => <button key={node.code} type="button" className="button button-ghost button-sm" onClick={() => { setPath(path.slice(0, index + 1)); setDraft(x => ({ ...x, parent: node.code })); setFilters(x => ({ ...x, parent: node.code })) }}>› {node.code} {node.title}</button>)}</div></form>
+      <ResourceStatus result={nodes.result} loading={false} /><ResourceStatus result={result} loading={isLoading} />
+      {data && <>
+        <div className="stat-band"><dl className="stat-strip"><div className="stat"><dt className="stat-label">Total awards (SGD)</dt><dd className="stat-value">{formatMoney(data.summary.total_award_amount)}</dd></div><div className="stat"><dt className="stat-label">Award rows</dt><dd className="stat-value">{data.summary.award_row_count}</dd></div><div className="stat"><dt className="stat-label">Companies</dt><dd className="stat-value">{data.summary.company_count}</dd></div></dl></div>
+        {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Industry</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Awards</th><th className="cell-number">Companies</th><th className="cell-number">Share</th></tr></thead><tbody>{data.items.map(row => <tr key={row.code}><td className="cell-primary">{row.level !== 'Sub-class' ? <button className="button button-ghost button-sm" onClick={() => drill({ ...row, has_children: true })}>{row.code} — {row.title}</button> : <>{row.code} — {row.title}</>}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.award_row_count}</td><td className="cell-number">{row.company_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td></tr>)}</tbody></table></div> : <EmptyState title="No industry results">Try another branch or period.</EmptyState>}
+        <p className="panel-pad muted-text">Totals use suppliers with an unambiguous company link and valid primary SSIC. Excluded award rows: {data.summary.coverage.excluded_no_accepted_link_award_row_count} without an accepted company link; {data.summary.coverage.excluded_unresolved_primary_ssic_award_row_count} without a valid primary SSIC.</p>
+      </>}
+    </Panel>
+  </>
 }

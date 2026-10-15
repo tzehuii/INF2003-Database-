@@ -57,6 +57,7 @@ export type ApiSuccess<T> = {
   status: number
   database: DatabaseMode | null
   body: T
+  meta?: PaginatedMeta
 }
 
 /**
@@ -270,6 +271,7 @@ export async function apiRequest<T>(
       status: response.status,
       database,
       body: payload as T,
+      meta: envelope?.meta as PaginatedMeta | undefined,
     }
   }
 
@@ -493,6 +495,7 @@ export type SavedListSummary = {
 
 /** One entry from `GET /api/saved-lists/{list_id}`. */
 export type SavedListEntry = {
+  saved_at?: string | null
   company_uen: string
   company_name: string | null
   company_status: string | null

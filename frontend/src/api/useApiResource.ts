@@ -59,6 +59,7 @@ export function useApiResource<T>(
 
   useEffect(() => {
     if (path === null) {
+      setResult(null)
       setIsLoading(false)
       return
     }
@@ -66,6 +67,7 @@ export function useApiResource<T>(
     const controller = new AbortController()
     let isCurrent = true
 
+    setResult(null)
     setIsLoading(true)
 
     apiRequest<T>(path, database, JSON.parse(querySignature), {

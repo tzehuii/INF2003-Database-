@@ -2276,3 +2276,22 @@ html { scrollbar-gutter: stable; }
 @media (max-width: 900px) {
   .tender-filter-grid, .tender-award-draft { grid-template-columns: 1fr; }
 }
+
+/* Company bookmarks: outlined when unsaved, filled when saved. */
+.bookmark-column {
+  width: 56px;
+  text-align: center;
+}
+.bookmark-button {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  color: #687386;
+}
+.bookmark-button[aria-pressed="true"] {
+  color: #233d80;
+  background: #eef2ff;
+}
+.bookmark-button[aria-pressed="true"] svg {
+  fill: currentColor;
+}

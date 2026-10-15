@@ -9,6 +9,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
+import { BookmarksProvider } from './api/bookmarks'
 import { BreadcrumbProvider } from './breadcrumbContext'
 import { DatabaseProvider, useDatabase } from './databaseContext.tsx'
 import AgencyAwardsPage from './pages/AgencyAwardsPage'
@@ -31,6 +32,7 @@ function AppLayout() {
 
   return (
     // `data-database` drives the identity stripe along the top of the workspace.
+    <BookmarksProvider key={database}>
     <div className="app-shell" data-database={database}>
       <Sidebar />
       <div className="app-workspace">
@@ -62,6 +64,7 @@ function AppLayout() {
         </main>
       </div>
     </div>
+    </BookmarksProvider>
   )
 }
 

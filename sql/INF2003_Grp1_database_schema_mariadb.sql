@@ -238,6 +238,7 @@ CREATE TABLE SavedListEntry (
     company_id          INT UNSIGNED NOT NULL,
     list_id             INT UNSIGNED NOT NULL,
     review_status       VARCHAR(30) NOT NULL DEFAULT 'Pending',
+    saved_at            TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 
     PRIMARY KEY (company_id, list_id),
     INDEX idx_saved_list_entry_list_id (list_id),

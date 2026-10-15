@@ -428,6 +428,7 @@ class SavedListEntryUpdate(BaseModel):
 class SavedListEntry(BaseModel):
     """One company inside a saved list."""
 
+    saved_at: str | None = None
     company_uen: str
     company_name: str | None = None
     company_status: str | None = None

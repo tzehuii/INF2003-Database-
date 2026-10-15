@@ -11,7 +11,6 @@ import { useId, useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import type { ApiResult } from '../api/client'
 import { describeFailure, isLiveData } from '../api/client'
-import { PLACEHOLDER_NOTICE } from '../api/mockData'
 import { EMPTY_VALUE } from '../format'
 import { Icon } from './icons'
 import type { IconName } from './icons'
@@ -206,7 +205,7 @@ export function LinkedAwardBadge({ hasLinkedAward }: { hasLinkedAward: boolean |
   return hasLinkedAward ? (
     <StatusBadge tone="success">Linked</StatusBadge>
   ) : (
-    <StatusBadge tone="neutral">Not linked</StatusBadge>
+    <StatusBadge tone="danger">Not linked</StatusBadge>
   )
 }
 
@@ -230,15 +229,6 @@ export function RegistryStatusBadge({ status }: { status: string }) {
   )
 }
 
-/** Marks a panel whose values are samples. The full sentence sits in the footer. */
-export function SampleDataBadge() {
-  return <StatusBadge tone="warning">Sample data</StatusBadge>
-}
-
-/** The sentence that explains the sample-data badge, once per panel footer. */
-export function PlaceholderNotice({ text }: { text?: string }) {
-  return <p>{text ?? PLACEHOLDER_NOTICE}</p>
-}
 
 /* ------------------------------------------------------------ status line -- */
 

@@ -449,7 +449,16 @@ def company_statuses(request: Request, database: Database):
 @router.get("/{uen}")
 def get_company(request: Request, database: Database, uen: Uen):
     with store(request, database) as db:
-        return envelope(read(db, database, uen), database)
+        company = read(db, database, uen)
+        if database == "mongodb":
+            doc = db.companies.find_one({"_id": company["uen"]}, {"former_names": 1}) or {}
+            names = [entry.get("name") for entry in sorted(doc.get("former_names", []), key=lambda entry: entry.get("source_slot", 0))]
+        else:
+            names = [row["former_name"] for row in sqlrows(db,
+                "SELECT f.former_name FROM FormerEntityName f JOIN Company c ON c.company_id=f.company_id WHERE c.uen=? ORDER BY f.source_slot",
+                (company["uen"],))]
+        company["former_names"] = [name for name in names if isinstance(name, str) and name.strip()]
+        return envelope(company, database)
 
 # Create a company, optionally with an address. Rejects an existing UEN.
 # body is the submitted form; CompanyCreate validates it before this function runs.

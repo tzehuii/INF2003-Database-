@@ -1,276 +1,43 @@
-/**
- * Agency Awards page.
- *
- * View suppliers and awarded amounts for a selected government agency.
- *
- * It shows three summary figures only, with no top-suppliers chart, and reports
- * the excluded no-supplier tender count as a small informational line rather
- * than a fourth figure.
- */
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { API_ROUTES, isLiveData } from '../api/client'
-import type { AgencyAwardsData } from '../api/client'
-import {
-  PLACEHOLDER_AGENCIES,
-  PLACEHOLDER_AGENCY_SUPPLIERS,
-  PLACEHOLDER_AGENCY_SUMMARY,
-} from '../api/mockData'
+import type { AgenciesData, AgencyAwardsData } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
-import {
-  BackendStatusStrip,
-  EmptyState,
-  PageHeading,
-  Pagination,
-  Panel,
-  PanelFooter,
-  PanelNotes,
-  PlaceholderNotice,
-  SampleDataBadge,
-  StatusBadge,
-} from '../components/ui'
+import { EmptyState, PageHeading, Pagination, Panel, PanelFooter } from '../components/ui'
 import { formatMoney, formatPercent } from '../format'
-
-/** Page size for the offset pagination the API uses. */
-const PAGE_SIZE = 5
-
-type Filters = {
-  agencyName: string
-  startDate: string
-  endDate: string
-  aboveAverageOnly: boolean
-}
-
-const DEFAULT_AGENCY = PLACEHOLDER_AGENCIES[0]
-
-const EMPTY_FILTERS: Filters = {
-  agencyName: DEFAULT_AGENCY,
-  startDate: '',
-  endDate: '',
-  aboveAverageOnly: false,
-}
-
+import { ResourceStatus } from './publicShared'
+const SIZE = 25
+const EMPTY = { agency: '', start: '', end: '', above: false }
 export default function AgencyAwardsPage() {
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS)
-  const [submitted, setSubmitted] = useState<Filters>(EMPTY_FILTERS)
+  const [draft, setDraft] = useState(EMPTY)
+  const [filters, setFilters] = useState(EMPTY)
   const [offset, setOffset] = useState(0)
-
-  const requestKey = `${JSON.stringify(submitted)}|${offset}`
-
-  const { result, isLoading } = useApiResource<AgencyAwardsData>(
-    API_ROUTES.agencyAwards,
-    {
-      agency_name: submitted.agencyName,
-      start_date: submitted.startDate || undefined,
-      end_date: submitted.endDate || undefined,
-      above_average_only: submitted.aboveAverageOnly ? true : undefined,
-      limit: PAGE_SIZE,
-      offset,
-    },
-    requestKey,
-  )
-
-  // The summary is calculated from the full filtered result, before pagination
-  // and before the above-average option removes supplier rows, which is the rule
-  // the API states. The date range is not applied to the placeholder rows because
-  // the sample data carries no award dates. Suppliers without an accepted company
-  // link stay visible with a null company identity, as the API defines.
-  const allSuppliers = PLACEHOLDER_AGENCY_SUPPLIERS
-  const averageTotal =
-    allSuppliers.length === 0
-      ? 0
-      : allSuppliers.reduce((sum, row) => sum + Number(row.total_award_amount), 0) /
-        allSuppliers.length
-
-  const visibleSuppliers = submitted.aboveAverageOnly
-    ? allSuppliers.filter((row) => Number(row.total_award_amount) > averageTotal)
-    : allSuppliers
-
-  const rows = visibleSuppliers.slice(offset, offset + PAGE_SIZE)
-  const hasPrevious = offset > 0
-  const hasNext = offset + PAGE_SIZE < visibleSuppliers.length
-
-
-  const supplierMatchingWarning =
-    result !== null && result.state === 'not_implemented'
-      ? 'Agency analysis does not depend on supplier matching.'
-      : undefined
-
-  function runSearch(event: React.FormEvent) {
-    event.preventDefault()
-    setSubmitted(draft)
-    setOffset(0)
-  }
-
-  function reset() {
-    setDraft(EMPTY_FILTERS)
-    setSubmitted(EMPTY_FILTERS)
-    setOffset(0)
-  }
-
-  return (
-    <>
-      <PageHeading
-        icon="agency"
-        title="Agency Awards"
-        description="Suppliers and awarded amounts for one government agency and period."
-      />
-
-      <Panel title="Suppliers" badge={!isLiveData(result) ? <SampleDataBadge /> : undefined}>
-        <form className="toolbar" onSubmit={runSearch}>
-          <div className="toolbar-row toolbar-row-fields">
-            <label className="field field-grow">
-              <span className="field-label">Agency</span>
-              <select
-                className="input"
-                value={draft.agencyName}
-                onChange={(event) => setDraft({ ...draft, agencyName: event.target.value })}
-              >
-                {PLACEHOLDER_AGENCIES.map((agency) => (
-                  <option key={agency} value={agency}>
-                    {agency}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span className="field-label">Start Date</span>
-              <input
-                type="date"
-                className="input"
-                value={draft.startDate}
-                onChange={(event) => setDraft({ ...draft, startDate: event.target.value })}
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">End Date</span>
-              <input
-                type="date"
-                className="input"
-                value={draft.endDate}
-                onChange={(event) => setDraft({ ...draft, endDate: event.target.value })}
-              />
-            </label>
-
-            <label className="checkbox-item">
-              <input
-                type="checkbox"
-                checked={draft.aboveAverageOnly}
-                onChange={(event) =>
-                  setDraft({ ...draft, aboveAverageOnly: event.target.checked })
-                }
-              />
-              <span>Above Average Only</span>
-            </label>
-
-            <div className="toolbar-end">
-              <button type="submit" className="button button-primary">
-                Search
-              </button>
-              <button type="button" className="button button-secondary" onClick={reset}>
-                Reset
-              </button>
-            </div>
-          </div>
-
-          {draft.aboveAverageOnly && (
-            <p className="field-hint">
-              Keeps suppliers whose total is above the average across the filtered result
-              {allSuppliers.length > 0 && <> ({formatMoney(averageTotal.toFixed(2))})</>}.
-            </p>
-          )}
-        </form>
-
-        <BackendStatusStrip
-          route={API_ROUTES.agencyAwards}
-          result={result}
-          isLoading={isLoading}
-          note={supplierMatchingWarning}
-        />
-
-        <div className="stat-band" role="group" aria-label="Agency summary">
-          <dl className="stat-strip">
-            <div className="stat">
-              <dt className="stat-label">Supplier Count</dt>
-              <dd className="stat-value">{PLACEHOLDER_AGENCY_SUMMARY.supplier_count}</dd>
-            </div>
-            <div className="stat">
-              <dt className="stat-label">Tender Count</dt>
-              <dd className="stat-value">{PLACEHOLDER_AGENCY_SUMMARY.tender_count}</dd>
-            </div>
-            <div className="stat">
-              <dt className="stat-label">Total Award Amount</dt>
-              <dd className="stat-value">
-                {formatMoney(PLACEHOLDER_AGENCY_SUMMARY.total_award_amount)}
-              </dd>
-            </div>
-          </dl>
-          <p className="stat-footnote">
-            {PLACEHOLDER_AGENCY_SUMMARY.excluded_no_supplier_tender_count} tenders without a
-            named supplier were excluded from this analysis.
-          </p>
+  const agencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100 })
+  const moreAgencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100, offset: 100 })
+  const names = [...(isLiveData(agencies.result) ? agencies.result.body.items : []), ...(isLiveData(moreAgencies.result) ? moreAgencies.result.body.items : [])]
+  const firstAgency = names[0]?.agency_name ?? ''
+  useEffect(() => { setDraft(EMPTY); setFilters(EMPTY); setOffset(0) }, [agencies.result?.database])
+  const agency = filters.agency || firstAgency
+  const { result, isLoading } = useApiResource<AgencyAwardsData>(agency ? API_ROUTES.agencyAwards : null, { agency_name: agency, start_date: filters.start, end_date: filters.end, above_average_only: filters.above, limit: SIZE, offset })
+  const data = isLiveData(result) ? result.body : null
+  return <>
+    <PageHeading icon="agency" title="Agency Awards" description="Compare supplier awards for a government agency and period." />
+    <Panel title="Supplier awards">
+      <form className="toolbar" onSubmit={e => { e.preventDefault(); setFilters({ ...draft, agency: draft.agency || firstAgency }); setOffset(0) }}>
+        <div className="toolbar-row toolbar-row-fields">
+          <label className="field field-grow"><span className="field-label">Agency</span><select className="input" value={draft.agency || firstAgency} onChange={e => setDraft({ ...draft, agency: e.target.value })}>{!names.length && <option value="">Loading agencies…</option>}{names.map(x => <option key={x.agency_name}>{x.agency_name}</option>)}</select></label>
+          <label className="field"><span className="field-label">Start date</span><input className="input" type="date" value={draft.start} onChange={e => setDraft({ ...draft, start: e.target.value })} /></label>
+          <label className="field"><span className="field-label">End date</span><input className="input" type="date" min={draft.start || undefined} value={draft.end} onChange={e => setDraft({ ...draft, end: e.target.value })} /></label>
+          <label className="checkbox-item"><input type="checkbox" checked={draft.above} onChange={e => setDraft({ ...draft, above: e.target.checked })} />Above average only</label>
+          <button className="button button-primary" disabled={!firstAgency}>Search</button><button type="button" className="button button-secondary" onClick={() => { setDraft(EMPTY); setFilters(EMPTY); setOffset(0) }}>Reset</button>
         </div>
-
-        {rows.length === 0 ? (
-          <EmptyState title="No suppliers found">
-            No suppliers match the current filters.
-          </EmptyState>
-        ) : (
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th scope="col">Supplier</th>
-                  <th scope="col" className="cell-number">
-                    Total award amount
-                  </th>
-                  <th scope="col" className="cell-number">
-                    Tender count
-                  </th>
-                  <th scope="col" className="cell-number">
-                    Share
-                  </th>
-                  <th scope="col">Company</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.supplier_name}>
-                    <td className="cell-primary">{row.supplier_name}</td>
-                    <td className="cell-number">{formatMoney(row.total_award_amount)}</td>
-                    <td className="cell-number">{row.tender_count}</td>
-                    <td className="cell-number">{formatPercent(row.share_percent)}</td>
-                    <td>
-                      {row.company_link.status === 'accepted' ? (
-                        <StatusBadge tone="success">Linked</StatusBadge>
-                      ) : (
-                        <StatusBadge tone="neutral">Not linked</StatusBadge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <PanelFooter>
-          <Pagination
-            count={rows.length}
-            hasPrevious={hasPrevious}
-            hasNext={hasNext}
-            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-            onNext={() => setOffset((current) => current + PAGE_SIZE)}
-          />
-          {!isLiveData(result) && (
-            <PanelNotes>
-              <PlaceholderNotice />
-            </PanelNotes>
-          )}
-        </PanelFooter>
-      </Panel>
-    </>
-  )
+      </form>
+      <ResourceStatus result={agencies.result} loading={agencies.isLoading} /><ResourceStatus result={moreAgencies.result} loading={false} /><ResourceStatus result={result} loading={isLoading} />
+      {data && <>
+        <div className="stat-band"><dl className="stat-strip"><div className="stat"><dt className="stat-label">Suppliers</dt><dd className="stat-value">{data.summary.supplier_count}</dd></div><div className="stat"><dt className="stat-label">Tenders</dt><dd className="stat-value">{data.summary.tender_count}</dd></div><div className="stat"><dt className="stat-label">Total awards (SGD)</dt><dd className="stat-value">{formatMoney(data.summary.total_award_amount)}</dd></div></dl><p className="stat-footnote">{data.summary.excluded_no_supplier_tender_count} tenders without supplier awards excluded. Average supplier total: {formatMoney(data.summary.average_supplier_total)}.</p></div>
+        {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Supplier</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Tenders</th><th className="cell-number">Share</th><th>Linked company</th></tr></thead><tbody>{data.items.map(row => <tr key={row.supplier_name}><td className="cell-primary">{row.supplier_name}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.tender_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td><td>{row.company_link.uen ? <Link className="row-link" to={`/companies/${encodeURIComponent(row.company_link.uen)}`}>{row.company_link.name ?? row.company_link.uen}</Link> : 'No confirmed company link'}</td></tr>)}</tbody></table></div> : <EmptyState title="No awards found">Try a different date range or agency.</EmptyState>}
+      </>}
+      <PanelFooter><Pagination count={data?.items.length ?? 0} hasPrevious={!isLoading && offset > 0} hasNext={!isLoading && isLiveData(result) && !!result.meta?.pagination.has_more} onPrevious={() => setOffset(x => Math.max(0, x - SIZE))} onNext={() => setOffset(x => x + SIZE)} /></PanelFooter>
+    </Panel>
+  </>
 }
