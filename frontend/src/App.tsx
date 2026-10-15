@@ -22,6 +22,8 @@ import DetailPage from './pages/businessActivities/DetailPage'
 import SavedListsPage from './pages/SavedListsPage'
 import SystemSectionPage from './pages/SystemSectionPage'
 import CompaniesAddressesPage from './pages/CompaniesAddressesPage'
+import TendersAwardsPage, { AwardsListPage, TendersListPage } from './pages/tendersAwards/TendersAwardsPage'
+import { TenderCreatePage, TenderDetailPage } from './pages/tendersAwards/TenderDetailPage'
 import { DEFAULT_SYSTEM_PATH } from './systemSections'
 
 function AppLayout() {
@@ -48,6 +50,12 @@ function AppLayout() {
               <Route path=":code" element={<DetailPage />} />
             </Route>
             <Route path="/system/companies-addresses/*" element={<CompaniesAddressesPage />} />
+            <Route path="/system/tenders-awards" element={<TendersAwardsPage />}>
+              <Route index element={<TendersListPage />} />
+              <Route path="awards" element={<AwardsListPage />} />
+              <Route path="new" element={<TenderCreatePage />} />
+              <Route path="tenders/:tenderNo" element={<TenderDetailPage />} />
+            </Route>
             <Route path="/system/:section" element={<SystemSectionPage />} />
             <Route path="*" element={<Navigate to="/companies" replace />} />
           </Routes>

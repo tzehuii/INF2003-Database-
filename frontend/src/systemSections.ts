@@ -6,7 +6,7 @@
 export const SYSTEM_SECTIONS = [
   { slug: 'business-activities', label: 'Business Activities', icon: 'tree', built: true },
   { slug: 'suppliers', label: 'Suppliers', icon: 'truck', built: false },
-  { slug: 'tenders-awards', label: 'Tenders & Awards', icon: 'document', built: false },
+  { slug: 'tenders-awards', label: 'Tenders & Awards', icon: 'document', built: true },
   { slug: 'companies-addresses', label: 'Companies & Addresses', icon: 'building', built: true },
 ] as const
 

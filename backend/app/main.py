@@ -17,6 +17,7 @@ from .routes.api import router as api_router
 from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
 from .routes.companies import router as companies_router
+from .routes.tenders import router as tenders_router
 
 
 @asynccontextmanager
@@ -44,3 +45,6 @@ app.include_router(business_activities_router)
 
 # Company and address maintenance for the System view.
 app.include_router(companies_router)
+
+# Tender and award maintenance for the System view.
+app.include_router(tenders_router)
