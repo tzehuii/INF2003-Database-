@@ -16,7 +16,7 @@ from datetime import date, datetime, time, timedelta
 import logging
 import re
 from time import monotonic
-from typing import Annotated, Literal
+from typing import Annotated, Literal, ClassVar
 
 import mariadb
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
@@ -65,6 +65,7 @@ class CleanModel(BaseModel):
 
 # Validate address form fields using the same length limits in both databases.
 class AddressInput(CleanModel):
+    allow_existing_postal: ClassVar[bool] = False
     type: str | None = Field(default=None, max_length=30)
     block: str | None = Field(default=None, max_length=30)
     street_name: str | None = Field(default=None, max_length=255)
@@ -100,12 +101,26 @@ class AddressInput(CleanModel):
         if self.type == "LOCAL":
             if not self.street_name:
                 invalid("missing_street", "Enter the street name for a local address.")
-            if not self.postal_code or not re.fullmatch(r"[0-9]{6}", self.postal_code):
+            if not self.allow_existing_postal and (not self.postal_code or not re.fullmatch(r"[0-9]{6}", self.postal_code)):
                 invalid("invalid_postal_code", "A local postal code must contain exactly 6 digits.")
 
         elif not (self.street_name or self.other_address_line1):
             invalid("missing_foreign_line", "Enter a street name or address line 1 for a foreign address.")
         return self
+
+# Defer postal validation on edits until the original address can be checked.
+# This flag is server-defined, never accepted as a client JSON field.
+class AddressUpdate(AddressInput):
+    allow_existing_postal: ClassVar[bool] = True
+
+# Keep an imported four-digit postal code only when that same address already has it.
+def validate_updated_postal(body, existing):
+    if body.type != "LOCAL" or (body.postal_code and re.fullmatch(r"[0-9]{6}", body.postal_code)):
+        return
+    legacy = existing.get("postal_code")
+    if existing.get("type") == "LOCAL" and legacy and re.fullmatch(r"[0-9]{4}", legacy) and body.postal_code == legacy:
+        return
+    fail(422, "invalid_postal_code", "Enter a 6-digit local postal code. An existing historical 4-digit code may only be kept unchanged.")
 
 # Fields sent by the edit-company form; the UEN cannot be edited.
 class CompanyInput(CleanModel):
@@ -113,11 +128,11 @@ class CompanyInput(CleanModel):
     status: str = Field(min_length=1, max_length=100)
     registration_date: date | None = None
 
-    # A name made only of symbols would leave an empty normalized name for searching.
+    # Accept letters and digits from any language, but reject names made only of symbols.
     @field_validator("name")
     @classmethod
     def readable_name(cls, value):
-        if not re.search(r"[A-Za-z0-9]", value):
+        if not any(character.isalnum() for character in value):
             invalid("invalid_name", "The company name must contain at least one letter or digit.")
         return value
 
@@ -145,7 +160,7 @@ class CompanyCreate(CompanyInput):
 
 # Derive the stored normalized name while keeping the display name separately.
 def normalize(name):
-    return re.sub(r"[^A-Z0-9]+", " ", name.upper()).strip()
+    return " ".join("".join(character if character.isalnum() else " " for character in name.upper()).split())
 
 # Wrap results as data plus metadata identifying the selected database.
 def envelope(data, database):
@@ -592,12 +607,14 @@ def address_exists(company, address_id):
 
 # Save the address form after checking it belongs to the requested company.
 @router.patch("/{uen}/addresses/{address_id}")
-def update_address(request: Request, database: Database, uen: Uen, address_id: str, body: AddressInput):
+def update_address(request: Request, database: Database, uen: Uen, address_id: str, body: AddressUpdate):
     with store(request, database) as db:
         # Check both the company and address ID before touching address data.
         company = read(db, database, uen)
         uen = company["uen"]
         address_exists(company, address_id)
+        existing = next(address for address in company["addresses"] if address["id"] == address_id)
+        validate_updated_postal(body, existing)
 
         if database == "mongodb":
             db.companies.update_one({"_id": uen}, {"$set": {"address": body.model_dump()}})

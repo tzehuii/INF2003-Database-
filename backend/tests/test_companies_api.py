@@ -63,6 +63,16 @@ def company(**changes):
             "registration_date": "2020-05-01", "address": dict(LOCAL_ADDRESS), **changes}
 
 
+# Read the public endpoint while the same disposable records are managed by System.
+def public_call(path, database, **query):
+    url = BASE.replace("/api/system/companies", "/api/companies") + path + "?" + urllib.parse.urlencode({"database": database, **query}, doseq=True)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.status, json.load(response)
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read())
+
+
 class CompaniesApiTest(unittest.TestCase):
 
     # Stop early with a clear message if the backend is not running.
@@ -469,7 +479,8 @@ class CompaniesApiTest(unittest.TestCase):
     def test_invalid_edits_leave_data_unchanged(self):
         for database in DATABASES:
             with self.subTest(database=database):
-                before = self.create(database)
+                self.create(database)
+                before = call("GET", f"/{TEST_UEN}", database)[1]["data"]
                 status, _ = call("PATCH", f"/{TEST_UEN}", database, {"name": "Changed", "status": "Made Up Status"})
                 self.assertEqual(status, 422)
                 address_id = before["addresses"][0]["id"]
@@ -486,6 +497,77 @@ class CompaniesApiTest(unittest.TestCase):
                 status, _ = call("POST", "", database, company(address={**LOCAL_ADDRESS, "postal_code": "123"}))
                 self.assertEqual(status, 422)
                 self.assertEqual(call("GET", f"/{TEST_UEN}", database)[0], 404)
+
+    # Public details must expose all System addresses, not just the first SQL row.
+    def test_public_details_include_all_system_addresses(self):
+        for database in DATABASES:
+            with self.subTest(database=database):
+                self.create(database)
+                if database == "mariadb":
+                    self.assertEqual(call("POST", f"/{TEST_UEN}/addresses", database, {**LOCAL_ADDRESS, "street_name": "SECOND STREET"})[0], 201)
+                system = call("GET", f"/{TEST_UEN}", database)[1]["data"]
+                status, public = public_call(f"/{TEST_UEN}", database)
+                self.assertEqual(status, 200, public)
+                expected = [{k: v for k, v in address.items() if k != "id"} for address in system["addresses"]]
+                self.assertEqual(public["data"]["addresses"], expected)
+
+    # Unicode names must survive creation, editing, normalization and public retrieval.
+    def test_non_latin_company_names(self):
+        for database in DATABASES:
+            with self.subTest(database=database):
+                self.create(database, name="\u516c\u53f8")
+                status, public = public_call(f"/{TEST_UEN}", database)
+                self.assertEqual(status, 200)
+                self.assertEqual(public["data"]["name"], "\u516c\u53f8")
+                status, body = call("PATCH", f"/{TEST_UEN}", database, {"name": "\u4f01\u696d", "status": "Live Company"})
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body["data"]["name"], "\u4f01\u696d")
+
+    # Simulate an imported legacy code on our disposable record, never on ACRA records.
+    def test_unchanged_historical_postal_code_can_be_edited(self):
+        settings = load_settings()
+        for database in DATABASES:
+            with self.subTest(database=database):
+                self.create(database)
+                if database == "mongodb":
+                    with MongoClient(settings.mongodb_uri) as client:
+                        client[settings.mongodb_db_name].companies.update_one({"_id": TEST_UEN}, {"$set": {"address.postal_code": "0105"}})
+                else:
+                    db = connect_mariadb(settings)
+                    try:
+                        cur = db.cursor()
+                        cur.execute("UPDATE Address a JOIN Company c ON a.company_id=c.company_id SET a.postal_code='0105' WHERE c.uen=?", (TEST_UEN,))
+                        db.commit(); cur.close()
+                    finally:
+                        db.close()
+                address = call("GET", f"/{TEST_UEN}", database)[1]["data"]["addresses"][0]
+                path = f"/{TEST_UEN}/addresses/{address['id']}"
+                edited = {**LOCAL_ADDRESS, "postal_code": "0105", "building_name": "Updated building"}
+                status, body = call("PATCH", path, database, edited)
+                self.assertEqual(status, 200, body)
+                self.assertEqual(body["data"]["addresses"][0]["postal_code"], "0105")
+                self.assertEqual(call("PATCH", path, database, {**edited, "postal_code": "0106"})[0], 422)
+                self.assertEqual(call("POST", "", database, company(uen=OTHER_UEN, address=edited))[0], 422)
+                self.assertEqual(call("PATCH", path, database, {**edited, "postal_code": "654321"})[0], 200)
+
+    # A full UEN is an identifier lookup, even when another company has it in its name.
+    def test_public_full_uen_search_is_exact(self):
+        for database in DATABASES:
+            with self.subTest(database=database):
+                self.create(database)
+                self.create(database, uen=OTHER_UEN, name=TEST_UEN)
+                status, result = public_call("", database, q=TEST_UEN.lower())
+                self.assertEqual(status, 200, result)
+                self.assertEqual([row["uen"] for row in result["data"]["items"]], [TEST_UEN])
+
+    # The linked-award filter must not replace an exact UEN condition in MongoDB.
+    def test_public_full_uen_with_linked_filter(self):
+        for database in DATABASES:
+            with self.subTest(database=database):
+                self.create(database)
+                status, result = public_call("", database, q=TEST_UEN, require_linked_award=True)
+                self.assertEqual(status, 200, result)
+                self.assertEqual(result["data"]["items"], [])
 
     def test_unknown_database_is_rejected(self):
         status, _ = call("GET", "", "oracle")

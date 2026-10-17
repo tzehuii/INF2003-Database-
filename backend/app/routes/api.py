@@ -8,7 +8,7 @@ from bson import ObjectId, Int64
 from bson.errors import InvalidId
 from fastapi import APIRouter, Query, Request, Response
 from ..api_models import SavedListCreate, SavedListEntryCreate, normalize_saved_list_name
-from .companies import store, sqlrows, execute, fail, day, mongo_day, registry_statuses, ADDRESS_FIELDS
+from .companies import store, sqlrows, execute, fail, day, mongo_day, registry_statuses, ADDRESS_FIELDS, UEN_PATTERN
 
 router = APIRouter(prefix="/api", tags=["business"])
 Database = Annotated[str, Query(pattern="^(mariadb|mongodb)$")]
@@ -79,6 +79,7 @@ def company_data(db, database, uen, detail=True):
             activities[kind] = {"code": a.get("code"), "title": titles.get(a.get("code")), "source_description": a.get("source_description")} if a.get("code") else None
         item = {"uen": uen, "name": doc.get("name"), "status": doc.get("status") or "Unknown",
                 "incorporation_date": day((doc.get("registration") or {}).get("incorporation_date")),
+                "addresses": [doc["address"]] if doc.get("address") and any(doc["address"].values()) else [],
                 "address": doc.get("address"), "former_names": [x["name"] for x in doc.get("former_names", [])], "activities": activities}
     else:
         rows = sqlrows(db, "SELECT * FROM Company WHERE uen=?", (uen,))
@@ -89,10 +90,12 @@ def company_data(db, database, uen, detail=True):
         for a in sqlrows(db, """SELECT ca.activity_type,b.ssic_code,b.ssic_title,ca.source_ssic_description
             FROM CompanyActivity ca JOIN BusinessActivity b ON b.activity_id=ca.activity_id WHERE ca.company_id=?""", (doc["company_id"],)):
             activities[a["activity_type"].lower()] = {"code": a["ssic_code"], "title": a["ssic_title"], "source_description": a["source_ssic_description"]}
-        addresses = sqlrows(db, "SELECT * FROM Address WHERE company_id=? ORDER BY address_id LIMIT 1", (doc["company_id"],))
-        address = {k: addresses[0]["address_type" if k == "type" else k] for k in ADDRESS_FIELDS} if addresses else None
+        addresses = sqlrows(db, "SELECT * FROM Address WHERE company_id=? ORDER BY address_id", (doc["company_id"],))
+        # Return every SQL address; retain address as a compatibility alias for older clients.
+        all_addresses = [{k: row["address_type" if k == "type" else k] for k in ADDRESS_FIELDS} for row in addresses]
+        address = all_addresses[0] if all_addresses else None
         item = {"uen": uen, "name": doc["company_name"], "status": doc["status"] or "Unknown", "incorporation_date": day(doc["registration_date"]),
-                "address": address, "former_names": [r["former_name"] for r in sqlrows(db, "SELECT former_name FROM FormerEntityName WHERE company_id=? ORDER BY source_slot", (doc["company_id"],))], "activities": activities}
+                "address": address, "addresses": all_addresses, "former_names": [r["former_name"] for r in sqlrows(db, "SELECT former_name FROM FormerEntityName WHERE company_id=? ORDER BY source_slot", (doc["company_id"],))], "activities": activities}
     item["has_linked_award"] = uen in linked_uens(db, database, [uen])
     if detail:
         return item
@@ -108,34 +111,68 @@ def statuses(request: Request, database: Database):
 @router.get("/companies")
 def companies(request: Request, database: Database, q: str = Query(default="", max_length=500),
               status: Annotated[list[str] | None, Query()] = None, require_linked_award: bool = False,
-              limit: Limit = 25, offset: Offset = 0):
+              limit: Limit = 25, offset: Offset = 0, industry_code: str = "",
+              sort_by: str = Query(default="uen", pattern="^(uen|name|status|registration_date|primary_activity)$"),
+              sort_direction: str = Query(default="asc", pattern="^(asc|desc)$")):
     q = q.strip()
+    industry_code = industry_code.strip().upper()
+    # Full UENs use an indexed lookup; names still search current and former names.
+    exact_uen = bool(UEN_PATTERN.fullmatch(q.upper()))
     if q and len(q) < 2:
         fail(422, "invalid_search", "Enter at least two characters to search.")
     with store(request, database) as db:
+        # A broad industry includes its descendants; match the company primary activity only.
+        activity_codes = industry_descendants(catalogue(db, database), industry_code) if industry_code else []
         if database == "mongodb":
             filters = {}
+            if activity_codes:
+                filters["activities.primary.code"] = {"$in": activity_codes}
             if q:
-                filters["$or"] = [{"_id": q.upper()}, {"name": {"$regex": re.escape(q), "$options": "i"}}, {"former_names.name": {"$regex": re.escape(q), "$options": "i"}}]
+                if exact_uen:
+                    filters["_id"] = q.upper()
+                else:
+                    filters["$or"] = [{"_id": q.upper()}, {"name": {"$regex": re.escape(q), "$options": "i"}}, {"former_names.name": {"$regex": re.escape(q), "$options": "i"}}]
             if status:
                 filters["status"] = {"$in": status}
             if require_linked_award:
                 accepted = list(db.suppliers.find({"match.status": "accepted"}, {"match.company_uen": 1}))
                 suppliers = {x["_id"]: x["match"]["company_uen"] for x in accepted}
                 used = db.tenders.distinct("awards.supplier_id")
-                filters["_id"] = {"$in": sorted({suppliers[x] for x in used if x in suppliers})}
-            ids = [x["_id"] for x in db.companies.find(filters, {"_id": 1}).sort("_id", 1).skip(offset).limit(limit+1)]
+                allowed = sorted({suppliers[x] for x in used if x in suppliers})
+                if exact_uen:
+                    filters["_id"] = q.upper() if q.upper() in allowed else {"$in": []}
+                else:
+                    filters["_id"] = {"$in": allowed}
+            # Sort before pagination; a UEN tie-breaker keeps adjacent pages stable.
+            field = {"uen": "_id", "name": "name", "status": "status", "registration_date": "registration.incorporation_date", "primary_activity": "activities.primary.code"}[sort_by]
+            direction = 1 if sort_direction == "asc" else -1
+            ordering = [(field, direction)] + ([] if field == "_id" else [("_id", direction)])
+            ids = [x["_id"] for x in db.companies.find(filters, {"_id": 1}).sort(ordering).allow_disk_use(True).skip(offset).limit(limit+1)]
         else:
             where, params = [], []
+            if activity_codes:
+                placeholders = ",".join("?" for _ in activity_codes)
+                where.append("EXISTS (SELECT 1 FROM CompanyActivity ca JOIN BusinessActivity ba ON ba.activity_id=ca.activity_id WHERE ca.company_id=c.company_id AND ca.activity_type='Primary' AND ba.ssic_code IN (" + placeholders + "))")
+                params.extend(activity_codes)
             if q:
-                where.append("(c.uen=? OR c.company_name LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM FormerEntityName f WHERE f.company_id=c.company_id AND f.former_name LIKE ? ESCAPE '!'))")
-                params.extend([q.upper(), sql_like(q), sql_like(q)])
+                if exact_uen:
+                    where.append("c.uen=?"); params.append(q.upper())
+                else:
+                    where.append("(c.uen=? OR c.company_name LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM FormerEntityName f WHERE f.company_id=c.company_id AND f.former_name LIKE ? ESCAPE '!'))")
+                    params.extend([q.upper(), sql_like(q), sql_like(q)])
             if status:
                 where.append("c.status IN (" + ",".join("?" for _ in status) + ")")
                 params.extend(status)
             if require_linked_award:
                 where.append("EXISTS (SELECT 1 FROM SupplierEntityMatch m JOIN TenderAward a ON a.supplier_id=m.supplier_id WHERE m.company_id=c.company_id AND (SELECT COUNT(*) FROM SupplierEntityMatch m2 WHERE m2.supplier_id=m.supplier_id)=1)")
-            query = "SELECT c.uen FROM Company c" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY c.uen LIMIT ? OFFSET ?"
+            # SQL identifiers come only from this whitelist, never directly from user input.
+            field = {"uen": "c.uen", "name": "c.company_name", "status": "c.status", "registration_date": "c.registration_date",
+                     "primary_activity": "sort_activity.ssic_code"}[sort_by]
+            direction = "ASC" if sort_direction == "asc" else "DESC"
+            ordering = field + " " + direction + (", c.uen " + direction if sort_by != "uen" else "")
+            # Join the primary assignment once instead of executing a subquery for every company.
+            sorting_join = " LEFT JOIN CompanyActivity sort_assignment ON sort_assignment.company_id=c.company_id AND sort_assignment.activity_type='Primary' LEFT JOIN BusinessActivity sort_activity ON sort_activity.activity_id=sort_assignment.activity_id" if sort_by == "primary_activity" else ""
+            query = "SELECT c.uen FROM Company c" + sorting_join + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY " + ordering + " LIMIT ? OFFSET ?"
             ids = [x["uen"] for x in sqlrows(db, query, (*params, limit+1, offset))]
         items = [company_data(db, database, uen, False) for uen in ids[:limit]]
         return envelope({"items": items}, database, limit, offset, len(ids)>limit)
@@ -220,7 +257,7 @@ def agency_awards(request: Request, database: Database, agency_name: str, start_
                   "company_link": {"status": "accepted" if g["uen"] else "not_accepted", "uen": g["uen"], "name": g["name"]}} for name,g in groups.items() if not above_average_only or g["amount"]>average]
         items.sort(key=lambda x: (-Decimal(x["total_award_amount"]), x["supplier_name"]))
         result = page(items, database, limit, offset)
-        result["data"]["summary"] = {"agency_name": agency_name, "period": {"start_date": start_date, "end_date": end_date}, "supplier_count": len(groups), "award_row_count": len(rows), "tender_count": len({r["tender_no"] for r in rows}),
+        result["data"]["summary"] = {"agency_name": agency_name, "period": {"start_date": start_date, "end_date": end_date}, "supplier_count": len(groups), "matching_supplier_count": len(items), "award_row_count": len(rows), "tender_count": len({r["tender_no"] for r in rows}),
                                      "total_award_amount": money(total), "average_supplier_total": money(average) if average is not None else None, "excluded_no_supplier_tender_count": len(no_awards)}
         return result
 
@@ -231,13 +268,29 @@ def catalogue(db, database):
     return {x["ssic_code"]: {"code": x["ssic_code"], "title": x["ssic_title"], "level": x["ssic_level"], "parent": x["parent_code"]} for x in sqlrows(db, "SELECT b.*,p.ssic_code parent_code FROM BusinessActivity b LEFT JOIN BusinessActivity p ON b.parent_activity_id=p.activity_id")}
 
 
+# Resolve a selected section, division or specific SSIC into codes for primary-activity filtering.
+def industry_descendants(nodes, code):
+    if code not in nodes:
+        fail(422, "invalid_industry", "Choose an industry from the SSIC list.")
+    children = {}
+    for node in nodes.values():
+        children.setdefault(node["parent"], []).append(node["code"])
+    found, pending = set(), [code]
+    while pending:
+        current = pending.pop()
+        if current not in found:
+            found.add(current)
+            pending.extend(children.get(current, []))
+    return sorted(found)
+
+
 @router.get("/industries")
-def industries(request: Request, database: Database, parent_code: str | None = None):
+def industries(request: Request, database: Database, parent_code: str | None = None, include_all: bool = False):
     with store(request, database) as db:
         nodes = catalogue(db, database)
         if parent_code and parent_code not in nodes: fail(404, "industry_not_found", "Industry not found.")
         parents = {x["parent"] for x in nodes.values()}
-        items = [{k: n[k] for k in ["code", "title", "level"]} | {"has_children": n["code"] in parents} for n in nodes.values() if n["parent"] == parent_code]
+        items = [{k: n[k] for k in ["code", "title", "level"]} | {"has_children": n["code"] in parents} for n in nodes.values() if include_all or n["parent"] == parent_code]
         return envelope({"items": sorted(items, key=lambda x:x["code"])}, database)
 
 
@@ -310,10 +363,7 @@ def read_list(request: Request, database: Database, list_id: str, limit: Limit =
             docs = {x["_id"]:x for x in db.companies.find({"_id": {"$in": [e["company_uen"] for e in entries]}}, {"name": 1, "status": 1})}
             items = [{"company_uen": e["company_uen"], "company_name": docs.get(e["company_uen"],{}).get("name"), "company_status": docs.get(e["company_uen"],{}).get("status"), "review_status": e["review_status"], "saved_at": e["created_at"].replace(tzinfo=timezone.utc).isoformat()} for e in entries]
         else:
-            items = sqlrows(db, "SELECT c.uen company_uen,c.company_name,c.status company_status,e.review_status,UNIX_TIMESTAMP(e.saved_at) saved_at FROM SavedListEntry e JOIN Company c ON c.company_id=e.company_id WHERE e.list_id=? ORDER BY c.uen LIMIT ? OFFSET ?", (key, limit+1, offset))
-        if database == "mariadb":
-            for item in items:
-                item["saved_at"] = datetime.fromtimestamp(float(item["saved_at"]), timezone.utc).isoformat()
+            items = sqlrows(db, "SELECT c.uen company_uen,c.company_name,c.status company_status,e.review_status,NULL saved_at FROM SavedListEntry e JOIN Company c ON c.company_id=e.company_id WHERE e.list_id=? ORDER BY c.uen LIMIT ? OFFSET ?", (key, limit+1, offset))
         result["entries"] = items[:limit]
         return envelope(result, database, limit, offset, len(items)>limit)
 
@@ -331,9 +381,8 @@ def add_entry(request: Request, database: Database, list_id: str, body: SavedLis
         if database == "mongodb":
             saved_at = db.saved_list_entries.find_one({"list_id": key, "company_uen": uen})["created_at"].replace(tzinfo=timezone.utc).isoformat()
         else:
-            saved_at = sqlrows(db, "SELECT UNIX_TIMESTAMP(saved_at) saved_at FROM SavedListEntry WHERE list_id=? AND company_id=(SELECT company_id FROM Company WHERE uen=?)", (key, uen))[0]["saved_at"]
-        if database == "mariadb":
-            saved_at = datetime.fromtimestamp(float(saved_at), timezone.utc).isoformat()
+            # The shared MariaDB schema has no saved timestamp; do not invent a date.
+            saved_at = None
         return envelope({"saved_at": saved_at, "company_uen": uen, "company_name": co["name"], "company_status": co["status"], "review_status": body.review_status.value}, database)
 
 

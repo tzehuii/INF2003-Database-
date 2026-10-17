@@ -359,6 +359,7 @@ export type CompanyDetail = {
   name: string | null
   status: string
   incorporation_date: string | null
+  addresses: Address[]
   address: Address | null
   former_names: string[]
   activities: CompanyActivities
@@ -395,6 +396,7 @@ export type CompanyAwardsData = { items: CompanyAward[] }
 
 /** Agency totals from `GET /api/agency-awards`. */
 export type AgencyAwardsSummary = {
+  matching_supplier_count: number
   agency_name: string
   period: { start_date: string | null; end_date: string | null }
   supplier_count: number

@@ -40,6 +40,8 @@ export default function SavedListsPage() {
     }
   }
 
+  // Only offer chronological sorting when the database supplies saved timestamps.
+  const hasSavedDates = entries.some(entry => !!entry.saved_at)
   const term = query.trim().toLocaleLowerCase()
   const rows = entries.filter(entry => !term || entry.company_uen.toLocaleLowerCase().includes(term) || entry.company_name?.toLocaleLowerCase().includes(term))
     .sort((a, b) => {
@@ -57,7 +59,7 @@ export default function SavedListsPage() {
     <Panel title={`Saved companies (${entries.length})`}>
       <div className="toolbar"><div className="toolbar-row toolbar-row-fields">
         <SearchInput aria-label="Search saved companies" placeholder="Search saved companies by name or UEN" value={query} onChange={event => setQuery(event.target.value)} />
-        <label className="field"><span className="field-label">Sort by</span><select className="input" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">Recently saved</option><option value="name">Company name (A–Z)</option></select></label>
+        <label className="field"><span className="field-label">Sort by</span><select className="input" value={hasSavedDates ? sort : "name"} onChange={event => setSort(event.target.value)}>{hasSavedDates && <option value="recent">Recently saved</option>}<option value="name">Company name (A–Z)</option></select></label>
         {query && <button type="button" className="button button-secondary" onClick={() => setQuery('')}>Clear search</button>}
       </div></div>
       {loading ? <p className="panel-pad" role="status">Loading saved companies…</p> : entries.length === 0 ? <EmptyState title="No saved companies yet">Click the bookmark icon beside a company to save it here.</EmptyState> : rows.length === 0 ? <EmptyState title="No matching saved companies">Try another name or UEN, or clear your search.</EmptyState> : <div className="table-scroll"><table className="table"><thead><tr><th>Company</th><th>UEN</th><th>Registry status</th><th>Action</th></tr></thead><tbody>{rows.map(entry => <tr key={entry.company_uen}><td className="cell-primary"><Link className="row-link" to={`/companies/${encodeURIComponent(entry.company_uen)}`}>{entry.company_name ?? entry.company_uen}</Link></td><td className="cell-id">{entry.company_uen}</td><td>{entry.company_status ? <RegistryStatusBadge status={entry.company_status} /> : 'Company no longer available'}</td><td><button type="button" className="button button-secondary button-sm" disabled={pending.includes(entry.company_uen)} onClick={() => void removeCompany(entry)}>{pending.includes(entry.company_uen) ? 'Removing…' : 'Remove'}</button></td></tr>)}</tbody></table></div>}

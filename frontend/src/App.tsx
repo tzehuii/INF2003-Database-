@@ -32,7 +32,7 @@ function AppLayout() {
 
   return (
     // `data-database` drives the identity stripe along the top of the workspace.
-    <BookmarksProvider key={database}>
+    <BookmarksProvider>
     <div className="app-shell" data-database={database}>
       <Sidebar />
       <div className="app-workspace">

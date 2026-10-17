@@ -136,6 +136,7 @@ class CompanyDetail(BaseModel):
     status: str
     incorporation_date: date | None = None
     address: Address | None = None
+    addresses: list[Address] = Field(default_factory=list, description="All registered addresses.")
     former_names: list[str] = Field(
         default_factory=list, description="Former names in source order."
     )

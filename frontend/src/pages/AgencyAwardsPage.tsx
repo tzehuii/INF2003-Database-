@@ -3,23 +3,25 @@ import { Link } from 'react-router-dom'
 import { API_ROUTES, isLiveData } from '../api/client'
 import type { AgenciesData, AgencyAwardsData } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
-import { EmptyState, PageHeading, Pagination, Panel, PanelFooter } from '../components/ui'
+import { EmptyState, PageHeading, Panel, PanelFooter } from '../components/ui'
 import { formatMoney, formatPercent } from '../format'
 import { ResourceStatus } from './publicShared'
-const SIZE = 25
 const EMPTY = { agency: '', start: '', end: '', above: false }
 export default function AgencyAwardsPage() {
   const [draft, setDraft] = useState(EMPTY)
   const [filters, setFilters] = useState(EMPTY)
+  const [pageSize, setPageSize] = useState(25)
   const [offset, setOffset] = useState(0)
-  const agencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100 })
-  const moreAgencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100, offset: 100 })
+  const [pageDraft, setPageDraft] = useState("1")
+  useEffect(() => { setPageDraft(String(offset / pageSize + 1)) }, [offset, pageSize])
+  const agencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100 }, '', {}, true)
+  const moreAgencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100, offset: 100 }, '', {}, true)
   const names = [...(isLiveData(agencies.result) ? agencies.result.body.items : []), ...(isLiveData(moreAgencies.result) ? moreAgencies.result.body.items : [])]
   const firstAgency = names[0]?.agency_name ?? ''
-  useEffect(() => { setDraft(EMPTY); setFilters(EMPTY); setOffset(0) }, [agencies.result?.database])
   const agency = filters.agency || firstAgency
-  const { result, isLoading } = useApiResource<AgencyAwardsData>(agency ? API_ROUTES.agencyAwards : null, { agency_name: agency, start_date: filters.start, end_date: filters.end, above_average_only: filters.above, limit: SIZE, offset })
+  const { result, isLoading } = useApiResource<AgencyAwardsData>(agency ? API_ROUTES.agencyAwards : null, { agency_name: agency, start_date: filters.start, end_date: filters.end, above_average_only: filters.above, limit: pageSize, offset }, '', {}, true)
   const data = isLiveData(result) ? result.body : null
+  const pageCount = Math.max(1, Math.ceil((data?.summary.matching_supplier_count ?? 0) / pageSize))
   return <>
     <PageHeading icon="agency" title="Agency Awards" description="Compare supplier awards for a government agency and period." />
     <Panel title="Supplier awards">
@@ -32,12 +34,31 @@ export default function AgencyAwardsPage() {
           <button className="button button-primary" disabled={!firstAgency}>Search</button><button type="button" className="button button-secondary" onClick={() => { setDraft(EMPTY); setFilters(EMPTY); setOffset(0) }}>Reset</button>
         </div>
       </form>
-      <ResourceStatus result={agencies.result} loading={agencies.isLoading} /><ResourceStatus result={moreAgencies.result} loading={false} /><ResourceStatus result={result} loading={isLoading} />
+      <ResourceStatus result={agencies.result} loading={agencies.isLoading && !isLiveData(agencies.result)} /><ResourceStatus result={moreAgencies.result} loading={false} /><ResourceStatus result={result} loading={isLoading && !data} />
       {data && <>
         <div className="stat-band"><dl className="stat-strip"><div className="stat"><dt className="stat-label">Suppliers</dt><dd className="stat-value">{data.summary.supplier_count}</dd></div><div className="stat"><dt className="stat-label">Tenders</dt><dd className="stat-value">{data.summary.tender_count}</dd></div><div className="stat"><dt className="stat-label">Total awards (SGD)</dt><dd className="stat-value">{formatMoney(data.summary.total_award_amount)}</dd></div></dl><p className="stat-footnote">{data.summary.excluded_no_supplier_tender_count} tenders without supplier awards excluded. Average supplier total: {formatMoney(data.summary.average_supplier_total)}.</p></div>
         {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Supplier</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Tenders</th><th className="cell-number">Share</th><th>Linked company</th></tr></thead><tbody>{data.items.map(row => <tr key={row.supplier_name}><td className="cell-primary">{row.supplier_name}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.tender_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td><td>{row.company_link.uen ? <Link className="row-link" to={`/companies/${encodeURIComponent(row.company_link.uen)}`}>{row.company_link.name ?? row.company_link.uen}</Link> : 'No confirmed company link'}</td></tr>)}</tbody></table></div> : <EmptyState title="No awards found">Try a different date range or agency.</EmptyState>}
       </>}
-      <PanelFooter><Pagination count={data?.items.length ?? 0} hasPrevious={!isLoading && offset > 0} hasNext={!isLoading && isLiveData(result) && !!result.meta?.pagination.has_more} onPrevious={() => setOffset(x => Math.max(0, x - SIZE))} onNext={() => setOffset(x => x + SIZE)} /></PanelFooter>
+      <PanelFooter>
+        {/* Keep page navigation together; changing page size keeps the search and current page where possible. */}
+        <div className="agency-pagination">
+          <span className="muted-text">Showing {data?.items.length ?? 0} results</span>
+          <div className="agency-pagination-controls">
+            <label className="agency-page-size">Results per page
+              <select className="input" value={pageSize} disabled={isLoading} onChange={event => { const size = Number(event.target.value); const currentPage = offset / pageSize + 1; const lastPage = Math.max(1, Math.ceil((data?.summary.matching_supplier_count ?? 0) / size)); setPageSize(size); setOffset((Math.min(currentPage, lastPage) - 1) * size) }}>
+                {[10, 25, 50].map(size => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+            <form className="company-page-jump" onSubmit={event => { event.preventDefault(); const target = Number(pageDraft); if (Number.isInteger(target) && target >= 1 && target <= pageCount) setOffset((target - 1) * pageSize) }}>
+              <label htmlFor="agency-page">Page</label>
+              <input id="agency-page" title="Type a page number and press Enter" className="input" type="number" min={1} max={pageCount} step={1} required value={pageDraft} disabled={isLoading || !data} onChange={event => setPageDraft(event.target.value)} />
+              <span>of {pageCount}</span>
+            </form>
+            <button type="button" className="button button-secondary button-sm" disabled={isLoading || offset === 0} onClick={() => setOffset(x => Math.max(0, x - pageSize))}>Previous</button>
+            <button type="button" className="button button-secondary button-sm" disabled={isLoading || !isLiveData(result) || !result.meta?.pagination.has_more} onClick={() => setOffset(x => x + pageSize)}>Next</button>
+          </div>
+        </div>
+      </PanelFooter>
     </Panel>
   </>
 }

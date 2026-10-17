@@ -14,6 +14,9 @@ const Context = createContext<Bookmarks | null>(null)
 /** One browser's bookmark list in each database; company records stay in the database. */
 export function BookmarksProvider({ children }: { children: ReactNode }) {
   const { database } = useDatabase()
+  // Keep the page mounted; ignore bookmark responses from a database we have left.
+  const activeDatabase = useRef(database)
+  activeDatabase.current = database
   const storageKey = `bta:bookmarks:${database}`
   const listId = useRef<string | null>(null)
   const creating = useRef<Promise<string> | null>(null)
@@ -27,7 +30,7 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     let current = true
     const controller = new AbortController()
     async function load() {
-      setLoading(true); setError('')
+      setLoading(true); setError(''); setPending([]); creating.current = null
       try {
         const id = localStorage.getItem(storageKey)
         listId.current = id
@@ -37,6 +40,7 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
           while (true) {
             const result = await apiRequest<SavedListDetail>(API_ROUTES.savedListDetail(id), database, { limit: 100, offset }, { signal: controller.signal })
             if (result.state !== 'success') {
+              if (!current) return
               if (result.status === 404) {
                 localStorage.removeItem(storageKey); listId.current = null; break
               }
@@ -63,9 +67,9 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
         const result = await apiRequest<SavedListSummary>(API_ROUTES.savedLists, database, {}, { method: 'POST', body: { name: `Bookmarks ${crypto.randomUUID()}` } })
         if (result.state !== 'success') throw new Error(result.message)
         localStorage.setItem(storageKey, result.body.id)
-        listId.current = result.body.id
+        if (activeDatabase.current === database) listId.current = result.body.id
         return result.body.id
-      })().finally(() => { creating.current = null })
+      })().finally(() => { if (activeDatabase.current === database) creating.current = null })
     }
     return creating.current
   }
@@ -74,14 +78,15 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     setPending(old => [...old, uen]); setError('')
     try {
       const id = remove ? listId.current : await ensureList()
-      if (!id) return false
+      if (!id || activeDatabase.current !== database) return false
       const path = `${API_ROUTES.savedListDetail(id)}/companies${remove ? `/${encodeURIComponent(uen)}` : ''}`
       const result = await apiRequest<SavedListEntry>(path, database, {}, { method: remove ? 'DELETE' : 'POST', body: remove ? undefined : { company_uen: uen } })
+      if (activeDatabase.current !== database) return false
       if (result.state !== 'success') throw new Error(result.message)
       setEntries(old => remove ? old.filter(x => x.company_uen !== uen) : old.some(x => x.company_uen === uen) ? old : [...old, result.body])
       return true
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not update saved companies.'); return false }
-    finally { setPending(old => old.filter(x => x !== uen)) }
+    } catch (e) { if (activeDatabase.current === database) setError(e instanceof Error ? e.message : 'Could not update saved companies.'); return false }
+    finally { if (activeDatabase.current === database) setPending(old => old.filter(x => x !== uen)) }
   }
 
   const reload = useCallback(() => setVersion(x => x + 1), [])

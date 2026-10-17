@@ -36,10 +36,9 @@ type Editor = { kind: 'company'; company?: Company } | { kind: 'address'; compan
 
 // Load status choices from the selected database, retaining an existing draft selection.
 function StatusSelect({ value, onChange, required = false }: { value: string; onChange: (value: string) => void; required?: boolean }) {
-  const { database } = useDatabase()
-  const statuses = useApiResource<{ items: string[] }>(`${BASE}/statuses`)
+  const statuses = useApiResource<{ items: string[] }>(`${BASE}/statuses`, {}, '', {}, true)
   const result = statuses.result
-  const items = result?.state === 'success' && result.database === database ? result.body.items : []
+  const items = result?.state === 'success' ? result.body.items : []
   const choices = Array.from(new Set([...(value ? [value] : []), ...items])).sort()
   // A positioned menu always opens below the field; the browser cannot flip it upward.
   return <>
@@ -49,7 +48,7 @@ function StatusSelect({ value, onChange, required = false }: { value: string; on
         {['', ...choices].map(status => <li key={status}><button type="button" aria-pressed={value === status} onClick={event => { onChange(status); event.currentTarget.closest('details')?.removeAttribute('open') }}>{status || (required ? 'Select registration status' : 'All statuses')}</button></li>)}
       </ul>
     </details>
-    {statuses.isLoading && <small>Loading available statuses…</small>}
+    {statuses.isLoading && !items.length && <small>Loading available statuses…</small>}
     {!statuses.isLoading && result && result.state !== 'success' && <small role="alert">Could not load statuses. Restart the backend if it has not loaded the new route. <button type="button" onClick={statuses.reload}>Retry</button></small>}
   </>
 }
@@ -111,7 +110,9 @@ function AddressForm({ company, address, onDone, onCancel }: { company: Company;
     if (!['LOCAL', 'FOREIGN'].includes(values.type)) invalid.type = 'Choose LOCAL or FOREIGN.'
     if (values.type === 'LOCAL') {
       if (!values.street_name.trim()) invalid.street_name = 'Enter the street name.'
-      if (!/^[0-9]{6}$/.test(values.postal_code.trim())) invalid.postal_code = 'Enter exactly 6 digits, for example 123456.'
+      // Preserve an unchanged imported four-digit code; the backend verifies the target address.
+      const unchangedLegacy = address?.type === 'LOCAL' && /^[0-9]{4}$/.test(address.postal_code || '') && values.postal_code.trim() === address.postal_code
+      if (!unchangedLegacy && !/^[0-9]{6}$/.test(values.postal_code.trim())) invalid.postal_code = 'Enter exactly 6 digits, or keep the existing historical code unchanged.'
     } else if (values.type === 'FOREIGN' && !values.street_name.trim() && !values.other_address_line1.trim()) {
       invalid.other_address_line1 = 'Enter a street name or address line 1.'
     }
@@ -141,6 +142,7 @@ function AddressForm({ company, address, onDone, onCancel }: { company: Company;
     <form onSubmit={submit}>
       <p className="company-save-target" role="status">Saving to <strong>{database === 'mariadb' ? 'MariaDB' : 'MongoDB'}</strong>. Switching databases keeps your draft; Save writes only to the selected database.</p>
       <fieldset disabled={busy} className="company-form-grid">{addressLabels.map(([key, label, max]) => <label className="field" key={key}>{label}{key === 'type' ? <select className="input" value={values.type} aria-invalid={!!fieldErrors.type} onChange={e => setValues(v => ({ ...v, type: e.target.value }))}><option value="">Select address type</option><option value="LOCAL">LOCAL</option><option value="FOREIGN">FOREIGN</option></select> : <input className="input" maxLength={key === 'postal_code' && values.type === 'LOCAL' ? 6 : max} inputMode={key === 'postal_code' && values.type === 'LOCAL' ? 'numeric' : undefined} value={values[key]} aria-invalid={!!fieldErrors[key]} aria-describedby={fieldErrors[key] ? `address-error-${key}` : undefined} onChange={e => setValues(v => ({ ...v, [key]: e.target.value }))} />}{fieldErrors[key] && <small id={`address-error-${key}`} className="address-field-error" role="alert">{fieldErrors[key]}</small>}</label>)}</fieldset>
+      {address?.type === 'LOCAL' && /^[0-9]{4}$/.test(address.postal_code || '') && <p className="company-save-target">This address has a historical 4-digit postal code. You may keep it unchanged; a replacement must contain 6 digits.</p>}
       {error && <div className="company-form-error"><InlineError title="Could not save address">{error}</InlineError></div>}
       <PanelFooter><div className="company-actions address-form-actions"><button className="button address-save-button" disabled={busy}>{busy ? 'Saving…' : 'Save address'}</button><button type="button" className="button company-cancel-button" disabled={busy} onClick={onCancel}>Cancel</button></div></PanelFooter>
     </form>
@@ -171,8 +173,10 @@ function Workspace() {
   }
   const directoryScroll = useRef(0)
   const detailHeading = useRef<HTMLDivElement>(null)
-  const detail = useApiResource<Company>(companyUen ? `${BASE}/${encodeURIComponent(companyUen)}` : null)
-  const selected = detail.result?.state === 'success' && detail.result.database === database && detail.result.body.uen === companyUen ? detail.result.body : null
+  const detail = useApiResource<Company>(companyUen ? `${BASE}/${encodeURIComponent(companyUen)}` : null, {}, '', {}, true)
+  const selected = detail.result?.state === 'success' && detail.result.body.uen === companyUen ? detail.result.body : null
+
+  const detailRefreshing = detail.isLoading || !!(detail.result && detail.result.database !== database)
 
   // Count a view only after the company actually loads; failed lookups do not enter history.
   useEffect(() => {
@@ -245,19 +249,19 @@ function Workspace() {
   function reset() { setFilters(emptyFilters); setApplied(emptyFilters); setViewedFilter('all'); setAppliedViewed('all'); goToPage(1); setEditor(null); resource.reload() }
   const filterLabels: [keyof typeof emptyFilters, string, string][] = [['q', 'Company name or full UEN', 'search'], ['status', 'Registration status (exact)', 'text'], ['postal_code', 'Postal code (exact)', 'text'], ['street', 'Street name contains', 'text'], ['registered_from', 'Registered from', 'date'], ['registered_to', 'Registered to', 'date']]
   return <>
-    <div ref={detailHeading} tabIndex={-1} className="company-screen-heading"><PageHeading title={detailMode ? (selected?.name || 'Company details') : 'Companies & Addresses'} description={detailMode ? `Company record and addresses in ${label}.` : `Manage company records and registered addresses in ${label}.`} actions={detailMode ? <><button className="button company-navigation-button" onClick={backToDirectory}>Back to directory</button>{selected && !detail.isLoading && !editor && <div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy} onClick={() => setEditor({ kind: 'company', company: selected })}>Edit company</button><button className="button company-delete-button button-sm" disabled={busy} onClick={() => remove(selected)}>Delete company</button></div>}</> : <button className="button button-primary" disabled={busy} onClick={() => { setEditor({ kind: 'company' }); setNotice(''); setError('') }}>Add company</button>} /></div>
+    <div ref={detailHeading} tabIndex={-1} className="company-screen-heading"><PageHeading title={detailMode ? (selected?.name || 'Company details') : 'Companies & Addresses'} description={detailMode ? `Company record and addresses in ${label}.` : `Manage company records and registered addresses in ${label}.`} actions={detailMode ? <><button className="button company-navigation-button" onClick={backToDirectory}>Back to directory</button>{selected && !editor && <div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing} onClick={() => setEditor({ kind: 'company', company: selected })}>Edit company</button><button className="button company-delete-button button-sm" disabled={busy || detailRefreshing} onClick={() => remove(selected)}>Delete company</button></div>}</> : <button className="button button-primary" disabled={busy} onClick={() => { setEditor({ kind: 'company' }); setNotice(''); setError('') }}>Add company</button>} /></div>
     {notice && <ConfirmationBanner onDismiss={() => setNotice('')}>{notice}</ConfirmationBanner>}
     {error && <InlineError title="Request failed">{error}</InlineError>}
     {editor?.kind === 'company' && <CompanyForm key={editor.company?.uen ?? 'new'} company={editor.company} onDone={saved} onCancel={() => setEditor(null)} />}
     {editor?.kind === 'address' && <AddressForm key={`${editor.company.uen}-${editor.address?.id ?? 'new'}`} company={editor.company} address={editor.address} onDone={saved} onCancel={() => setEditor(null)} />}
-    {detailMode && detail.isLoading && !editor && <Panel><SkeletonRows count={4} label="Loading company details" /></Panel>}
+    {detailMode && detail.isLoading && !selected && !editor && <Panel><SkeletonRows count={4} label="Loading company details" /></Panel>}
     {detailMode && !detail.isLoading && detail.result && detail.result.state !== 'success' && <InlineError title="Could not load company" action={<button className="button button-secondary" onClick={detail.reload}>Retry</button>}>{detail.result.message}</InlineError>}
-    {selected && !detail.isLoading && !editor && <Panel>
+    {selected && !editor && <Panel>
       <div className="company-detail"><dl className="company-summary"><div><dt>Current entity name</dt><dd>{selected.name || 'Not provided'}</dd></div><div><dt>Former entity names</dt><dd>{selected.former_names?.length ? selected.former_names.map((name, index) => <div key={`${index}-${name}`}>{name}</div>) : selected.name || 'Not provided'}</dd></div><div><dt>UEN</dt><dd>{selected.uen}</dd></div><div><dt>Status</dt><dd><RegistryStatusBadge status={selected.status || 'Not provided'} /></dd></div><div><dt>Registration date</dt><dd>{selected.registration_date || '—'}</dd></div></dl>
-      <div className="company-address-heading"><h3>Addresses</h3><button className="button company-edit-button button-sm" disabled={busy || (database === 'mongodb' && selected.addresses.length > 0)} onClick={() => setEditor({ kind: 'address', company: selected })}>Add address</button></div>
-      {database === 'mongodb' && <p className="company-note">This MongoDB model stores one embedded address per company.</p>}
+      <div className="company-address-heading"><h3>Addresses</h3><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing || (database === 'mongodb' && selected.addresses.length > 0)} onClick={() => setEditor({ kind: 'address', company: selected })}>Add address</button></div>
+      <p className="company-note">You can manage multiple addresses in MariaDB and one address per company in MongoDB.</p>
       {selected.addresses.length === 0 && <p>No address recorded. Use Add address to create one.</p>}
-      {selected.addresses.map(address => <div className="company-address-card" key={address.id}><dl className="company-address-values">{addressLabels.map(([key, text]) => address[key] ? <div key={key}><dt>{text}</dt><dd>{address[key]}</dd></div> : null)}</dl><div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy} onClick={() => setEditor({ kind: 'address', company: selected, address })}>Edit address</button><button className="button company-delete-button button-sm" disabled={busy} onClick={() => remove(selected, address)}>Delete address</button></div></div>)}
+      {selected.addresses.map(address => <div className="company-address-card" key={address.id}><dl className="company-address-values">{addressLabels.map(([key, text]) => address[key] ? <div key={key}><dt>{text}</dt><dd>{address[key]}</dd></div> : null)}</dl><div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing} onClick={() => setEditor({ kind: 'address', company: selected, address })}>Edit address</button><button className="button company-delete-button button-sm" disabled={busy || detailRefreshing} onClick={() => remove(selected, address)}>Delete address</button></div></div>)}
       </div>
     </Panel>}
     {!detailMode && !editor && <Panel title="Company directory">
@@ -277,7 +281,7 @@ function Workspace() {
       <form onSubmit={apply} className="company-filters"><fieldset disabled={busy} className="company-form-grid">{filterLabels.map(([key, text, type]) => <label className="field" key={key}>{text}{key === 'status' ? <StatusSelect value={filters.status} onChange={status => setFilters(f => ({ ...f, status }))} /> : <input className="input" type={type} maxLength={key === 'q' ? 500 : key === 'street' ? 255 : 20} value={filters[key]} onChange={e => setFilters(f => ({ ...f, [key]: e.target.value }))} />}</label>)}<label className="field">Viewing history<select className="input" value={viewedFilter} onChange={e => setViewedFilter(e.target.value)}><option value="all">All companies</option><option value="only">Recently viewed only</option><option value="hide">Hide recently viewed</option></select><small>Last 5 companies opened during this visit, shared across both databases. Clears when you leave this section or reload.</small></label><div className="company-actions"><button className="button button-primary">Search / filter</button><button type="button" className="button button-secondary" onClick={reset}>Reset</button></div></fieldset></form>
       {/* Reserve the result area while loading so the page height does not collapse. */}
       <div className="company-results-region" aria-busy={tableRefreshing}>
-      {tableRefreshing && <div className="company-table-loading" role="status"><span>Loading {label} results…</span></div>}
+      {tableRefreshing && <span className="visually-hidden" role="status">Updating company results.</span>}
       {!tableRefreshing && result && result.state !== 'success' ? <InlineError title="Could not load companies" action={<button className="button button-secondary" onClick={resource.reload}>Retry</button>}>{result.message}</InlineError> : data?.items.length === 0 ? <EmptyState title={page > 1 ? "No companies on this page" : "No matching companies"}>{page > 1 ? "Enter a lower page number or return to page 1." : "Try another search or reset the filters."}</EmptyState> : <div className="company-table-scroll"><table className="company-table"><thead><tr><th>UEN</th><th>Company</th><th>Status</th><th>Registered</th><th>Address</th><th><span className="visually-hidden">Actions</span></th></tr></thead><tbody>{data?.items.map(company => <tr key={company.uen} className={recentUens.includes(company.uen) ? 'company-recent-row' : undefined}><td>{company.uen}</td><td>{company.name || 'Unnamed company'}{recentUens.includes(company.uen) && <span className="company-recent-label">Recently viewed</span>}</td><td><RegistryStatusBadge status={company.status || 'Not provided'} /></td><td>{company.registration_date || '—'}</td><td>{company.addresses.map(a => [a.block, a.street_name, a.postal_code].filter(Boolean).join(' ')).join('; ') || '—'}</td><td><button className="button company-navigation-button button-sm" disabled={busy || tableRefreshing} onClick={() => openCompany(company)}>View / manage</button></td></tr>)}</tbody></table></div>}
       </div>
       <PanelFooter><div className="company-pagination"><span>Page {page} · {`${data?.items.length ?? 0} companies`}</span><div className="company-actions"><form className="company-page-jump" onSubmit={event => { event.preventDefault(); const next = Number(pageInput); if (Number.isInteger(next) && next >= 1 && next <= 100000) goToPage(next) }}><label htmlFor="company-page-number">Jump to page</label><input id="company-page-number" className="input" type="number" min="1" max="100000" step="1" required value={pageInput} disabled={busy} onChange={event => setPageInput(event.target.value)} aria-describedby="company-page-hint" /><span id="company-page-hint">Press Enter</span></form><button className="button button-secondary button-sm" disabled={busy || resource.isLoading || page === 1} onClick={() => goToPage(page - 1)}>Previous</button><button className="button button-secondary button-sm" disabled={busy || resource.isLoading || !data?.has_more} onClick={() => goToPage(page + 1)}>Next</button></div></div></PanelFooter>

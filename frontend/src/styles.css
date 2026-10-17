@@ -2295,3 +2295,53 @@ html { scrollbar-gutter: stable; }
 .bookmark-button[aria-pressed="true"] svg {
   fill: currentColor;
 }
+
+/* Separate each public address without changing other company detail panels. */
+.public-company-address { padding: 20px; }
+.public-company-address + .public-company-address { border-top: 1px solid var(--border); }
+.public-company-address h3 { margin-bottom: 12px; color: var(--text-secondary); }
+
+/* Wrap long industry titles within their column so award totals remain visible. */
+.industry-awards-table { table-layout: fixed; width: 100%; min-width: 0; }
+.industry-awards-table th:first-child { width: 12%; }
+.industry-awards-table th:nth-child(2) { width: 31%; }
+.industry-awards-table th:nth-child(3) { width: 24%; }
+.industry-awards-table th:nth-child(n+4) { width: 11%; }
+.industry-awards-table td:nth-child(2), .industry-awards-table td:nth-child(2) .button { white-space: normal; overflow-wrap: anywhere; text-align: left; min-width: 0; max-width: 100%; }
+.industry-awards-table td, .industry-awards-table th { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+
+/* Align agency paging controls on one padded row, wrapping on smaller screens. */
+.agency-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px 20px; }
+.agency-pagination-controls, .agency-page-size { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; }
+.agency-page-size .input { width: 72px; height: 34px; min-width: 0; }
+.agency-pagination .company-page-jump .input { width: 64px; text-align: center; }
+
+/* Keep short code labels and numeric headers intact while industry names wrap. */
+.industry-awards-table th:first-child, .industry-awards-table .industry-code { white-space: nowrap; overflow-wrap: normal; }
+.industry-awards-table th:nth-child(n+4) { white-space: nowrap; overflow-wrap: normal; }
+
+/* Column-heading buttons expose sort direction without changing table spacing. */
+.industry-sort { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; text-align: inherit; }
+.industry-sort:hover { color: var(--accent, #3454c9); }
+.industry-sort:focus-visible { outline: 2px solid #3454c9; outline-offset: 4px; border-radius: 2px; }
+.industry-sort .sort-arrow { font-size: 9px; opacity: .45; white-space: nowrap; }
+.industry-sort .sort-arrow.active { opacity: 1; color: #3454c9; }
+.industry-awards-table th:first-child { width: 13%; }
+.industry-awards-table th:nth-child(2) { width: 30%; }
+
+/* Wrapped drill-down labels must grow with their text instead of overlapping rows. */
+.industry-awards-table td:nth-child(2) .button { height: auto; min-height: 28px; line-height: 1.5; }
+
+/* Tender outcomes have a shared palette across list and detail views. */
+.tender-status { border: 1px solid; white-space: normal; }
+.tender-status-suppliers { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+.tender-status-items { color: #6b21a8; background: #faf5ff; border-color: #e9d5ff; }
+.tender-status-no-suppliers { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.tender-status-interface { color: #155e75; background: #ecfeff; border-color: #a5f3fc; }
+.tender-status-other { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+
+/* Keep the optional public industry picker below the existing company filters. */
+.public-industry-filter { margin-top: 16px; align-items: flex-end; }
+.public-industry-filter .field-grow { max-width: 720px; }
+
+.public-company-filter-actions { margin-top: 16px; display: flex; gap: 10px; }

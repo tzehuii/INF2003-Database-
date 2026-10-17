@@ -42,6 +42,7 @@ export function useApiResource<T>(
   query: Record<string, QueryValue> = {},
   requestKey: string = '',
   options: ApiRequestOptions = {},
+  keepPreviousData = false,
 ): ApiResource<T> {
   const { database } = useDatabase()
   const [result, setResult] = useState<ApiResult<T> | null>(null)
@@ -67,7 +68,8 @@ export function useApiResource<T>(
     const controller = new AbortController()
     let isCurrent = true
 
-    setResult(null)
+    // Opt-in tables keep their current rows mounted during sorting/filter requests.
+    if (!keepPreviousData) setResult(null)
     setIsLoading(true)
 
     apiRequest<T>(path, database, JSON.parse(querySignature), {
@@ -94,7 +96,7 @@ export function useApiResource<T>(
       isCurrent = false
       controller.abort()
     }
-  }, [path, database, querySignature, optionsSignature, requestKey, reloadToken])
+  }, [path, database, querySignature, optionsSignature, requestKey, reloadToken, keepPreviousData])
 
   return {
     result,

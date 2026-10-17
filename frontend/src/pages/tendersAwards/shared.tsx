@@ -5,8 +5,6 @@ import type { ReactNode } from 'react'
 import { apiRequest } from '../../api/client'
 import type { DatabaseMode } from '../../api/client'
 import { useApiResource } from '../../api/useApiResource'
-import { StatusBadge } from '../../components/ui'
-import type { BadgeTone } from '../../components/ui'
 import { useDatabase } from '../../databaseContext'
 
 export const TENDERS_PATH = '/system/tenders-awards'
@@ -74,8 +72,14 @@ export function formatSgd(amount: string) {
 
 // Colour tenders by outcome; the text always shows the exact GeBIZ status.
 export function TenderStatusBadge({ status }: { status: string }) {
-  const tone: BadgeTone = status === NO_SUPPLIERS ? 'neutral' : status.startsWith('Awarded') ? 'success' : 'outline'
-  return <StatusBadge tone={tone} dot>{status}</StatusBadge>
+  // Keep the four source statuses distinct in both the directory and detail page.
+  const colours: Record<string, string> = {
+    'Awarded to Suppliers': 'suppliers',
+    'Awarded by Items': 'items',
+    'Awarded to No Suppliers': 'no-suppliers',
+    'Award by interface record': 'interface',
+  }
+  return <span className={`badge tender-status tender-status-${colours[status] ?? 'other'}`}><span className="badge-dot" aria-hidden="true" />{status}</span>
 }
 
 // Agencies and statuses for the dropdowns, read from the selected database.
