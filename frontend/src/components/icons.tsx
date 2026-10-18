@@ -22,6 +22,8 @@ export type IconName =
   | 'check'
   | 'globe'
   | 'sliders'
+  | 'compare'
+  | 'gauge'
   | 'logo'
 
 const PATHS: Record<IconName, string> = {
@@ -41,6 +43,8 @@ const PATHS: Record<IconName, string> = {
   check: 'm5 12.5 4.5 4.5L19 7.5',
   globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.5 3.75 5.5 3.75 9S14.5 18.5 12 21c-2.5-2.5-3.75-5.5-3.75-9S9.5 5.5 12 3Z',
   sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5',
+  compare: 'M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7',
+  gauge: 'M4 18a8 8 0 1 1 16 0M12 18l4-6M7 13.5l-1-.6M17 13.5l1-.6M12 8V7',
   logo: 'm4 10 8-5 8 5M5 19h14M7 11v6M11 11v6M15 11v6M19 11v6',
 }
 

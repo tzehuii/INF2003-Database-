@@ -18,6 +18,9 @@ from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
 from .routes.companies import router as companies_router
 from .routes.tenders import router as tenders_router
+from .routes.suppliers import router as suppliers_router
+from .routes.consistency import router as consistency_router
+from .routes.performance import router as performance_router
 
 
 @asynccontextmanager
@@ -48,3 +51,10 @@ app.include_router(companies_router)
 
 # Tender and award maintenance for the System view.
 app.include_router(tenders_router)
+
+# Supplier maintenance and company links for the System view.
+app.include_router(suppliers_router)
+
+# MariaDB and MongoDB side by side: data consistency and performance.
+app.include_router(consistency_router)
+app.include_router(performance_router)

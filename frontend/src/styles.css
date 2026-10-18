@@ -2345,3 +2345,125 @@ html { scrollbar-gutter: stable; }
 .public-industry-filter .field-grow { max-width: 720px; }
 
 .public-company-filter-actions { margin-top: 16px; display: flex; gap: 10px; }
+
+/* Suppliers: link status with the linked company, and the change-link form. */
+.supplier-link-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.supplier-company { color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.supplier-company .mono { font-size: 12px; }
+.supplier-link-actions { align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.supplier-link-form { display: grid; gap: 10px; margin: 0; padding: 24px; border: 0; }
+.supplier-link-choice { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; }
+.supplier-link-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-subtle); }
+.supplier-link-choice input { margin-top: 3px; flex: none; }
+.supplier-link-choice-title { display: block; font-size: 13px; font-weight: 600; line-height: 20px; }
+.supplier-link-choice-text { display: block; color: var(--text-secondary); font-size: 12px; line-height: 18px; }
+.supplier-link-company { display: grid; gap: 14px; padding: 4px 0 8px 40px; }
+.supplier-link-company .field { display: flex; flex-direction: column; gap: 7px; max-width: 360px; font-size: 13px; }
+.supplier-link-company .field small { color: var(--text-secondary); font-size: 12px; }
+.supplier-candidates { display: grid; gap: 10px; justify-items: start; }
+.supplier-candidate-table { border: 1px solid var(--border); }
+.supplier-candidate-table td:nth-child(2) { min-width: 0; }
+
+/* -------------------------------------------------------------------------
+   Data Consistency and Performance (System view)
+   Chart colours are their own pair, not the shell's database identity colours,
+   which double as the warning and success status colours. Orange and teal keep
+   the MariaDB / MongoDB association and pass the colour-vision checks.
+   ------------------------------------------------------------------------- */
+:root {
+  --series-mariadb: #d95926;
+  --series-mongodb: #199e70;
+}
+
+.diagnostics-intro { margin: 0; padding: var(--space-4) var(--panel-pad-x) 0; max-width: 90ch; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.diagnostics-table td:first-child { color: var(--text-primary); }
+.diagnostics-table td:nth-child(2) { min-width: 0; }
+.diagnostics-table .cell-number { text-align: right; }
+.diagnostics-unit { display: block; color: var(--text-tertiary); font-size: 11px; line-height: 14px; font-weight: 400; }
+.diagnostics-subheading { margin: 0 0 var(--space-2); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.diagnostics-differences { padding: var(--space-4) var(--panel-pad-x) 0; }
+.diagnostics-details { margin: var(--space-3) var(--panel-pad-x); border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); }
+.diagnostics-differences .diagnostics-details { margin: 0 0 var(--space-2); }
+.diagnostics-details > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); cursor: pointer; font-size: 13px; font-weight: 500; }
+.diagnostics-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-panel); }
+.diagnostics-details[open] > summary { border-bottom: 1px solid var(--border); }
+.diagnostics-count { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.diagnostics-examples td { vertical-align: top; }
+.diagnostics-value { white-space: pre-wrap; overflow-wrap: anywhere; }
+.diagnostics-more { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-tertiary); font-size: 12px; }
+.panel > .banner { margin: var(--space-4) var(--panel-pad-x) 0; }
+
+/* Background job progress */
+.job-progress { display: grid; gap: var(--space-2); padding: var(--space-4) var(--panel-pad-x); }
+.job-progress-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.job-progress-step { margin: 0; flex: 1 1 260px; font-size: 13px; font-weight: 500; }
+.job-progress-meta { color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.job-progress-track { position: relative; height: 6px; overflow: hidden; border-radius: 999px; background: var(--accent-subtle); }
+.job-progress-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width 400ms ease; }
+.job-progress-indeterminate .job-progress-fill { width: 30%; animation: job-progress-slide 1.4s ease-in-out infinite; }
+@keyframes job-progress-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) {
+  .job-progress-indeterminate .job-progress-fill { animation: none; width: 100%; opacity: .4; }
+  .job-progress-fill { transition: none; }
+}
+
+/* Benchmark settings */
+.bench-form { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: var(--space-5) var(--space-8); padding: var(--space-5) var(--panel-pad-x); }
+.bench-form fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.bench-workloads { display: grid; gap: var(--space-2); }
+.bench-workloads legend { margin-bottom: var(--space-2); }
+.bench-workload { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; }
+.bench-workload:has(input:checked) { border-color: var(--accent); background: var(--accent-subtle); }
+.bench-workload input { margin-top: 2px; flex: none; }
+.bench-workload-name { display: block; font-size: 13px; font-weight: 600; line-height: 20px; }
+.bench-workload-text { display: block; color: var(--text-secondary); font-size: 12px; line-height: 18px; }
+.bench-options { display: grid; align-content: start; gap: var(--space-4); }
+.bench-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.bench-actions .field-hint { flex: 1 1 280px; }
+
+/* Benchmark results */
+.bench-stat-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bench-stat-text { font-size: 16px; line-height: 24px; font-variant-numeric: normal; }
+.bench-environment { margin-top: var(--space-4); }
+.bench-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-2) var(--panel-pad-x) var(--space-4); font-size: 12px; color: var(--text-secondary); }
+.bench-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.bench-swatch { width: 12px; height: 12px; border-radius: 3px; }
+.bench-swatch-mariadb, .bench-bar-mariadb { background: var(--series-mariadb); }
+.bench-swatch-mongodb, .bench-bar-mongodb { background: var(--series-mongodb); }
+.bench-workload-intro { padding: var(--space-4) var(--panel-pad-x) 0; max-width: 100ch; font-size: 13px; line-height: 20px; color: var(--text-secondary); }
+.bench-workload-intro p { margin: 0 0 var(--space-2); }
+.bench-methods strong { color: var(--text-primary); font-weight: 600; }
+.bench-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); padding: var(--space-3) var(--panel-pad-x) var(--space-2); }
+.bench-chart { margin: 0; min-width: 0; }
+.bench-chart-title { margin-bottom: var(--space-3); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.bench-chart-note { margin-left: 6px; color: var(--text-tertiary); font-size: 12px; font-weight: 400; }
+.bench-verdict { margin: var(--space-3) 0 0; color: var(--text-secondary); font-size: 12px; line-height: 18px; }
+.bench-bars { display: grid; gap: var(--space-3); }
+.bench-bar-group { display: grid; gap: 2px; }
+.bench-bar-group-label { color: var(--text-tertiary); font-size: 11px; line-height: 16px; }
+.bench-bar-row { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: var(--space-2); min-height: 22px; border-radius: 4px; outline: none; }
+.bench-bar-row:hover, .bench-bar-row:focus-visible { background: var(--surface-subtle); }
+.bench-bar-row:focus-visible { box-shadow: 0 0 0 2px var(--accent-ring); }
+.bench-bar-label { color: var(--text-secondary); font-size: 12px; }
+.bench-bar-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Leave room for the value label so the longest bar never pushes it out of the chart. */
+.bench-bar { display: block; flex: none; height: 14px; width: calc((100% - 84px) * var(--fraction, 0)); min-width: 2px; border-radius: 0 4px 4px 0; }
+.bench-bar-row:hover .bench-bar, .bench-bar-row:focus-visible .bench-bar { filter: brightness(1.08); }
+.bench-bar-value { flex: none; color: var(--text-primary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bench-bar-row[data-tip]:hover::after, .bench-bar-row[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute; z-index: 5; left: 72px; bottom: calc(100% + 6px);
+  max-width: 320px; padding: 8px 10px; border-radius: 6px;
+  background: var(--text-primary); color: #fff; font-size: 12px; line-height: 18px;
+  white-space: pre-line; pointer-events: none; box-shadow: 0 4px 12px rgba(24, 24, 27, .18);
+}
+.bench-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); padding: var(--space-4) var(--space-3); }
+.bench-plan-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.bench-plan-list li { font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.diagnostics-details .company-table-scroll .diagnostics-table + .diagnostics-table { border-top: 1px solid var(--border); }
+
+@media (max-width: 900px) {
+  .bench-form, .bench-charts, .bench-plans { grid-template-columns: minmax(0, 1fr); }
+  .bench-stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bench-stat-strip .stat:nth-child(3) { border-left: 0; }
+}

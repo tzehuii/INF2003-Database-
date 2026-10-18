@@ -25,6 +25,10 @@ import SystemSectionPage from './pages/SystemSectionPage'
 import CompaniesAddressesPage from './pages/CompaniesAddressesPage'
 import TendersAwardsPage, { AwardsListPage, TendersListPage } from './pages/tendersAwards/TendersAwardsPage'
 import { TenderCreatePage, TenderDetailPage } from './pages/tendersAwards/TenderDetailPage'
+import SuppliersPage, { SuppliersListPage } from './pages/suppliers/SuppliersPage'
+import { SupplierCreatePage, SupplierDetailPage } from './pages/suppliers/SupplierDetailPage'
+import ConsistencyPage from './pages/diagnostics/ConsistencyPage'
+import PerformancePage from './pages/diagnostics/PerformancePage'
 import { DEFAULT_SYSTEM_PATH } from './systemSections'
 
 function AppLayout() {
@@ -58,6 +62,13 @@ function AppLayout() {
               <Route path="new" element={<TenderCreatePage />} />
               <Route path="tenders/:tenderNo" element={<TenderDetailPage />} />
             </Route>
+            <Route path="/system/suppliers" element={<SuppliersPage />}>
+              <Route index element={<SuppliersListPage />} />
+              <Route path="new" element={<SupplierCreatePage />} />
+              <Route path="detail/:name" element={<SupplierDetailPage />} />
+            </Route>
+            <Route path="/system/data-consistency" element={<ConsistencyPage />} />
+            <Route path="/system/performance" element={<PerformancePage />} />
             <Route path="/system/:section" element={<SystemSectionPage />} />
             <Route path="*" element={<Navigate to="/companies" replace />} />
           </Routes>

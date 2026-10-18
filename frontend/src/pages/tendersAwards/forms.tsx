@@ -9,19 +9,19 @@ import { API, AMOUNT_PATTERN, Field, NO_SUPPLIERS, OptionSelect, SupplierInput, 
 import type { Award, Tender } from './shared'
 
 // Warn when a save finishes after the user switched databases, instead of showing the wrong result.
-function useDatabaseGuard() {
+export function useDatabaseGuard() {
   const { database } = useDatabase()
   const current = useRef(database)
   current.current = database
   return { database, changed: (sent: string) => current.current !== sent }
 }
 
-function SaveTarget() {
+export function SaveTarget() {
   const { database } = useDatabase()
   return <p className="company-save-target" role="status">Saving to <strong>{dbLabel(database)}</strong>. Switching databases keeps your draft; Save writes only to the selected database.</p>
 }
 
-function FormButtons({ busy, label, onCancel }: { busy: boolean; label: string; onCancel: () => void }) {
+export function FormButtons({ busy, label, onCancel }: { busy: boolean; label: string; onCancel: () => void }) {
   return <PanelFooter><div className="company-actions address-form-actions">
     <button className="button address-save-button" disabled={busy}>{busy ? 'Saving…' : label}</button>
     <button type="button" className="button company-cancel-button" disabled={busy} onClick={onCancel}>Cancel</button>

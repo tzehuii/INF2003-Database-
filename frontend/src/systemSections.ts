@@ -5,9 +5,11 @@
 
 export const SYSTEM_SECTIONS = [
   { slug: 'business-activities', label: 'Business Activities', icon: 'tree', built: true },
-  { slug: 'suppliers', label: 'Suppliers', icon: 'truck', built: false },
+  { slug: 'suppliers', label: 'Suppliers', icon: 'truck', built: true },
   { slug: 'tenders-awards', label: 'Tenders & Awards', icon: 'document', built: true },
   { slug: 'companies-addresses', label: 'Companies & Addresses', icon: 'building', built: true },
+  { slug: 'data-consistency', label: 'Data Consistency', icon: 'compare', built: true },
+  { slug: 'performance', label: 'Performance', icon: 'gauge', built: true },
 ] as const
 
 export const SYSTEM_BASE_PATH = '/system'
