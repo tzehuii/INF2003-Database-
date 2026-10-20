@@ -19,6 +19,7 @@ from .routes.health import router as health_router
 from .routes.companies import router as companies_router
 from .routes.tenders import router as tenders_router
 from .routes.suppliers import router as suppliers_router
+from .routes.schema import router as schema_router
 from .routes.consistency import router as consistency_router
 from .routes.performance import router as performance_router
 
@@ -55,6 +56,7 @@ app.include_router(tenders_router)
 # Supplier maintenance and company links for the System view.
 app.include_router(suppliers_router)
 
-# MariaDB and MongoDB side by side: data consistency and performance.
+# MariaDB and MongoDB side by side: schema, data consistency and performance.
+app.include_router(schema_router)
 app.include_router(consistency_router)
 app.include_router(performance_router)

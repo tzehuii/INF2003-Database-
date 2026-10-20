@@ -27,6 +27,7 @@ import TendersAwardsPage, { AwardsListPage, TendersListPage } from './pages/tend
 import { TenderCreatePage, TenderDetailPage } from './pages/tendersAwards/TenderDetailPage'
 import SuppliersPage, { SuppliersListPage } from './pages/suppliers/SuppliersPage'
 import { SupplierCreatePage, SupplierDetailPage } from './pages/suppliers/SupplierDetailPage'
+import SchemaPage from './pages/diagnostics/SchemaPage'
 import ConsistencyPage from './pages/diagnostics/ConsistencyPage'
 import PerformancePage from './pages/diagnostics/PerformancePage'
 import { DEFAULT_SYSTEM_PATH } from './systemSections'
@@ -67,6 +68,7 @@ function AppLayout() {
               <Route path="new" element={<SupplierCreatePage />} />
               <Route path="detail/:name" element={<SupplierDetailPage />} />
             </Route>
+            <Route path="/system/database-schema" element={<SchemaPage />} />
             <Route path="/system/data-consistency" element={<ConsistencyPage />} />
             <Route path="/system/performance" element={<PerformancePage />} />
             <Route path="/system/:section" element={<SystemSectionPage />} />

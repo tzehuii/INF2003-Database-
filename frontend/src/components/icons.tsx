@@ -24,6 +24,7 @@ export type IconName =
   | 'sliders'
   | 'compare'
   | 'gauge'
+  | 'schema'
   | 'logo'
 
 const PATHS: Record<IconName, string> = {
@@ -45,6 +46,7 @@ const PATHS: Record<IconName, string> = {
   sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5',
   compare: 'M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7',
   gauge: 'M4 18a8 8 0 1 1 16 0M12 18l4-6M7 13.5l-1-.6M17 13.5l1-.6M12 8V7',
+  schema: 'M3 4h7v6H3zM14 14h7v6h-7zM3 7h7M14 17h7M10 7h2v10h2',
   logo: 'm4 10 8-5 8 5M5 19h14M7 11v6M11 11v6M15 11v6M19 11v6',
 }
 

@@ -241,6 +241,17 @@ class SuppliersApiTest(unittest.TestCase):
                 status, body = call("GET", "/suppliers", database, min_total="5", max_total="1")
                 self.assertEqual((status, error_code(body)), (422, "invalid_amounts"))
 
+    def test_summary_counts_match_the_filters(self):
+        for database in DATABASES:
+            with self.subTest(database=database):
+                status, body = call("GET", "/suppliers/summary", database)
+                self.assertEqual(status, 200, body)
+                summary = body["data"]
+                self.assertEqual(summary["total"], summary["accepted"] + summary["ambiguous"] + summary["unmatched"])
+                for link in ("accepted", "ambiguous", "unmatched"):
+                    _, listed = call("GET", "/suppliers", database, link=link, limit=1)
+                    self.assertEqual(listed["data"]["total"], summary[link], link)
+
     def test_both_databases_list_the_same_page(self):
         pages = {database: call("GET", "/suppliers", database, sort="total_desc", limit=20)[1]["data"] for database in DATABASES}
         self.assertEqual(pages["mariadb"]["total"], pages["mongodb"]["total"])

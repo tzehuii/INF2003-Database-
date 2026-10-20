@@ -8,6 +8,7 @@
 
 # Routes (GET reads, POST creates, PATCH edits and DELETE removes records):
 #   /api/system/suppliers                             supplier list and create
+#   /api/system/suppliers/summary                     how many suppliers are linked, ambiguous or unmatched
 #   /api/system/suppliers/item?name=                  one supplier: read, rename, delete
 #   /api/system/suppliers/item/link?name=             link to a company, remove the link, or match by name
 #   /api/system/suppliers/item/candidates?name=       companies whose normalized name matches the supplier's
@@ -25,6 +26,7 @@
 #   also rewrites those awards.
 
 # Import libraries.
+from collections import defaultdict
 from contextlib import contextmanager
 from decimal import Decimal
 import logging
@@ -384,6 +386,24 @@ def list_suppliers(request: Request, database: Database, q: str = Query(default=
                       "award_count": int(r["award_count"]), "total_amount": money(r["total_amount"])} for r in rows]
 
         return envelope(page_of(items, total_rows, page, limit), database)
+
+
+# How many suppliers are linked to one company, have several possible companies, or have none.
+@router.get("/summary")
+def supplier_summary(request: Request, database: Database):
+    with store(request, database) as db:
+        if database == "mongodb":
+            counts = {row["_id"]: row["n"] for row in db.suppliers.aggregate([{"$group": {"_id": "$match.status", "n": {"$sum": 1}}}])}
+        else:
+            # One match row links the supplier; several mean the name match is ambiguous.
+            rows = sqlrows(db, "SELECT COALESCE(m.candidate_count,0) AS candidates, COUNT(*) AS n FROM Supplier s "
+                               "LEFT JOIN (SELECT supplier_id, COUNT(*) AS candidate_count FROM SupplierEntityMatch "
+                               "GROUP BY supplier_id) m ON m.supplier_id=s.supplier_id GROUP BY COALESCE(m.candidate_count,0)")
+            counts = defaultdict(int)
+            for row in rows:
+                counts[sql_status(int(row["candidates"]))] += int(row["n"])
+        summary = {status: int(counts.get(status, 0)) for status in ("accepted", "ambiguous", "unmatched")}
+        return envelope({**summary, "total": sum(summary.values())}, database)
 
 
 # Load a supplier with its company link and awards for the detail screen.

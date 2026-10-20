@@ -3,6 +3,7 @@
 // Features this file covers:
 // - Search suppliers by name in the selected database.
 // - Filter by company link, awards, government agency and total awarded amount, with sorting and paging.
+// - See how many suppliers are linked to a company, and jump to each group from the company-links bar.
 // - Open a supplier to manage it, or add a new one.
 
 import { useRef, useState } from 'react'
@@ -15,6 +16,7 @@ import { Field, OptionSelect, Paging, dbLabel, formatSgd, isAmount, useTenderOpt
 import type { ResultPage } from '../tendersAwards/shared'
 import { API, LINK_OPTIONS, LinkBadge, SUPPLIERS_PATH, emptySupplierFilters, supplierPath } from './shared'
 import type { SupplierFilters, SupplierListState, SupplierRow } from './shared'
+import SupplierMatchBar from './SupplierMatchBar'
 
 const PAGE_SIZE = 25
 
@@ -70,10 +72,18 @@ export function SuppliersListPage() {
 
   function reset() { setFilters(emptySupplierFilters); setError(''); list.setApplied(emptySupplierFilters); list.setPage(1) }
 
+  // A part of the company-links bar sets only the link filter and searches straight away.
+  function showLinkStatus(link: string) {
+    const next = { ...list.applied, link }
+    setFilters(f => ({ ...f, link })); setError('')
+    list.setApplied(next); list.setPage(1)
+  }
+
   return <>
     <PageHeading title="Suppliers" description={`Manage GeBIZ suppliers and their links to registered companies in ${dbLabel(database)}.`}
       actions={<button className="button button-primary" onClick={() => navigate(`${SUPPLIERS_PATH}/new`)}>Add supplier</button>} />
     {error && <InlineError title="Check the filters">{error}</InlineError>}
+    <SupplierMatchBar active={list.applied.link} onSelect={showLinkStatus} />
     <Panel title="Supplier directory">
       <form onSubmit={apply} className="company-filters"><fieldset className="company-form-grid tender-filter-grid">
         <Field label="Supplier name contains" wide><input className="input" type="search" maxLength={500} placeholder="e.g. ALPHA ZETTA or engineering" value={filters.q} onChange={e => set('q')(e.target.value)} /></Field>

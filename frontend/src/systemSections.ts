@@ -8,6 +8,7 @@ export const SYSTEM_SECTIONS = [
   { slug: 'suppliers', label: 'Suppliers', icon: 'truck', built: true },
   { slug: 'tenders-awards', label: 'Tenders & Awards', icon: 'document', built: true },
   { slug: 'companies-addresses', label: 'Companies & Addresses', icon: 'building', built: true },
+  { slug: 'database-schema', label: 'Database Schema', icon: 'schema', built: true },
   { slug: 'data-consistency', label: 'Data Consistency', icon: 'compare', built: true },
   { slug: 'performance', label: 'Performance', icon: 'gauge', built: true },
 ] as const
