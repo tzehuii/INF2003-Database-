@@ -18,7 +18,7 @@ export const SIDES: { key: Side; label: string }[] = [
   { key: 'mongodb', label: 'MongoDB' },
 ]
 
-export const BOTH_DATABASES_NOTE = 'This page always reads both databases; the MariaDB / MongoDB switch does not apply here.'
+export const BOTH_DATABASES_NOTE = 'This page always reads both databases.'
 
 export type JobStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 

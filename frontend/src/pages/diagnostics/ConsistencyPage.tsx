@@ -57,7 +57,7 @@ function RecordCounts() {
     <Panel title="Record counts" badge={data && <MatchBadge match={mismatches === 0} />}
       actions={<button type="button" className="button button-secondary button-sm" disabled={resource.isLoading} onClick={resource.reload}>{resource.isLoading ? 'Counting…' : 'Count again'}</button>}>
       {result && result.state !== 'success'
-        ? <InlineError title="Could not count records" action={<button className="button button-secondary" onClick={resource.reload}>Retry</button>}>{result.message}</InlineError>
+        ? <div className="diagnostics-error"><InlineError title="Could not count records" action={<button className="button button-secondary" onClick={resource.reload}>Retry</button>}>{result.message}</InlineError></div>
         : !data ? <SkeletonRows count={6} label="Counting records in both databases" />
         : <div className="company-table-scroll" aria-busy={resource.isLoading}>
           <table className="company-table diagnostics-table">
@@ -94,9 +94,9 @@ function FullCheck() {
         {result ? 'Run again' : 'Run full check'}
       </button>}>
       <p className="diagnostics-intro">Compares every field of every record: all 2.1 million companies with their addresses, former names and industry links, plus industries, tenders, awards and supplier links. It reads both databases in UEN order and takes about two minutes. Nothing is changed.</p>
-      {check.error && <InlineError title="Full check">{check.error}</InlineError>}
+      {check.error && <div className="diagnostics-error"><InlineError title="Full check">{check.error}</InlineError></div>}
       {job?.status === 'running' && <JobProgress job={job} onCancel={check.cancel} />}
-      {job?.status === 'failed' && <InlineError title="The full check stopped">{job.error}</InlineError>}
+      {job?.status === 'failed' && <div className="diagnostics-error"><InlineError title="The full check stopped">{job.error}</InlineError></div>}
       {job?.status === 'cancelled' && <ConfirmationBanner tone="warning">The full check was cancelled after {formatSeconds(job.elapsed_seconds)}. No result was kept.</ConfirmationBanner>}
       {!job && check.loaded && !check.error && <EmptyState title="No full check yet" icon="compare">No full check has run since the backend started. Results stay available until it restarts.</EmptyState>}
       {result && job && <CheckResults result={result} finishedAt={job.finished_at} />}

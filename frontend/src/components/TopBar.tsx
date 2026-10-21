@@ -11,7 +11,7 @@ import { Fragment } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTrailOverride } from '../breadcrumbContext'
 import type { Crumb } from '../breadcrumbContext'
-import { SYSTEM_BASE_PATH, SYSTEM_SECTIONS } from '../systemSections'
+import { SYSTEM_BASE_PATH, SYSTEM_SECTIONS, usesBothDatabases } from '../systemSections'
 import DatabaseSelector from './DatabaseSelector'
 
 const ACTIVITIES = `${SYSTEM_BASE_PATH}/business-activities`
@@ -67,9 +67,11 @@ export default function TopBar() {
   const { pathname } = useLocation()
   const override = useTrailOverride()
   const trail = override ?? defaultTrail(pathname)
+  // Pages that compare both databases have no selected database: no switch and no identity stripe.
+  const bothDatabases = usesBothDatabases(pathname)
 
   return (
-    <header className="topbar">
+    <header className={bothDatabases ? 'topbar topbar-both' : 'topbar'}>
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <ol className="breadcrumb-list">
           {trail.map((crumb, index) => {
@@ -108,7 +110,7 @@ export default function TopBar() {
           })}
         </ol>
       </nav>
-      <DatabaseSelector />
+      {!bothDatabases && <DatabaseSelector />}
     </header>
   )
 }

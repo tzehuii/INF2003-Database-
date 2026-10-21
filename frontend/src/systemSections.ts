@@ -17,6 +17,14 @@ export const SYSTEM_BASE_PATH = '/system'
 export const DEFAULT_SYSTEM_PATH = `${SYSTEM_BASE_PATH}/${SYSTEM_SECTIONS[0].slug}`
 export const DEFAULT_APPLICATION_PATH = '/companies'
 
+/** Sections that always read MariaDB and MongoDB together, so the database switch is hidden there. */
+const BOTH_DATABASE_SLUGS = new Set(['database-schema', 'data-consistency', 'performance'])
+
+export function usesBothDatabases(pathname: string): boolean {
+  const slug = pathname.replace(/\/+$/, '').slice(`${SYSTEM_BASE_PATH}/`.length).split('/')[0]
+  return isSystemPath(pathname) && BOTH_DATABASE_SLUGS.has(slug)
+}
+
 export function isSystemPath(pathname: string): boolean {
   return pathname === SYSTEM_BASE_PATH || pathname.startsWith(`${SYSTEM_BASE_PATH}/`)
 }

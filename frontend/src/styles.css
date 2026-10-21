@@ -2391,7 +2391,13 @@ html { scrollbar-gutter: stable; }
 .diagnostics-examples td { vertical-align: top; }
 .diagnostics-value { white-space: pre-wrap; overflow-wrap: anywhere; }
 .diagnostics-more { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-tertiary); font-size: 12px; }
-.panel > .banner { margin: var(--space-4) var(--panel-pad-x) 0; }
+/* A banner inside a panel (Data Consistency, Performance) keeps space above and below, clear of the table under it. */
+.panel > .banner { margin: var(--space-4) var(--panel-pad-x); }
+/* Errors inside a diagnostics panel keep the panel's side padding and sit clear of the text above. */
+.diagnostics-error { padding: var(--space-4) var(--panel-pad-x) 0; }
+.diagnostics-error:last-child { padding-bottom: var(--space-4); }
+/* Pages comparing both databases have no selected database, so the identity stripe is hidden. */
+.topbar-both::before { display: none; }
 
 /* Background job progress */
 .job-progress { display: grid; gap: var(--space-2); padding: var(--space-4) var(--panel-pad-x); }
@@ -2574,6 +2580,36 @@ html { scrollbar-gutter: stable; }
 }
 @media (prefers-reduced-motion: reduce) {
   .schema-fk, .schema-card, .schema-card li { transition: none; }
+}
+
+/* Agency Awards: top suppliers bar chart between the summary and the table. */
+.agency-chart { margin: 0; padding: var(--space-5) var(--panel-pad-x) var(--space-4); border-bottom: 1px solid var(--border); }
+.agency-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: var(--space-3); }
+.agency-chart-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.agency-chart-hidden { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding-block: var(--space-3); }
+.agency-chart-hidden .agency-chart-title { color: var(--text-secondary); font-weight: 500; }
+.agency-chart-note { color: var(--text-tertiary); font-size: 12px; font-weight: 400; }
+.agency-chart-bars { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.agency-chart-row { position: relative; display: grid; grid-template-columns: 20px minmax(120px, 280px) minmax(0, 1fr); align-items: center; gap: 10px; min-height: 26px; padding: 0 6px; border-radius: 4px; outline: none; }
+.agency-chart-row:hover, .agency-chart-row:focus-visible { background: var(--surface-subtle); }
+.agency-chart-row:focus-visible { box-shadow: 0 0 0 2px var(--accent-ring); }
+.agency-chart-rank { color: var(--text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+.agency-chart-name { overflow: hidden; color: var(--text-primary); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.agency-chart-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.agency-chart-bar { display: block; flex: none; height: 16px; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.agency-chart-row:hover .agency-chart-bar, .agency-chart-row:focus-visible .agency-chart-bar { background: var(--ink-hover); }
+.agency-chart-value { flex: none; color: var(--text-primary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.agency-chart-row[data-tip]:hover::after, .agency-chart-row[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute; z-index: 5; left: 40px; bottom: calc(100% + 6px);
+  max-width: 360px; padding: 8px 10px; border-radius: 6px;
+  background: var(--text-primary); color: #fff; font-size: 12px; line-height: 18px;
+  white-space: pre-line; pointer-events: none; box-shadow: 0 4px 12px rgba(24, 24, 27, .18);
+}
+.agency-chart-footnote { margin: var(--space-3) 0 0; color: var(--text-tertiary); font-size: 12px; line-height: 18px; }
+@media (max-width: 720px) {
+  .agency-chart-row { grid-template-columns: 18px minmax(0, 1fr); }
+  .agency-chart-track { grid-column: 2; }
 }
 
 /* Suppliers: the company-links bar above the directory. */

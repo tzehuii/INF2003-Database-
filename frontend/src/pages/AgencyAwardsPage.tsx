@@ -6,6 +6,7 @@ import { useApiResource } from '../api/useApiResource'
 import { EmptyState, PageHeading, Panel, PanelFooter } from '../components/ui'
 import { formatMoney, formatPercent } from '../format'
 import { ResourceStatus } from './publicShared'
+import AgencyAwardsChart from './AgencyAwardsChart'
 const EMPTY = { agency: '', start: '', end: '', above: false }
 export default function AgencyAwardsPage() {
   const [draft, setDraft] = useState(EMPTY)
@@ -37,6 +38,7 @@ export default function AgencyAwardsPage() {
       <ResourceStatus result={agencies.result} loading={agencies.isLoading && !isLiveData(agencies.result)} /><ResourceStatus result={moreAgencies.result} loading={false} /><ResourceStatus result={result} loading={isLoading && !data} />
       {data && <>
         <div className="stat-band"><dl className="stat-strip"><div className="stat"><dt className="stat-label">Suppliers</dt><dd className="stat-value">{data.summary.supplier_count}</dd></div><div className="stat"><dt className="stat-label">Tenders</dt><dd className="stat-value">{data.summary.tender_count}</dd></div><div className="stat"><dt className="stat-label">Total awards (SGD)</dt><dd className="stat-value">{formatMoney(data.summary.total_award_amount)}</dd></div></dl><p className="stat-footnote">{data.summary.excluded_no_supplier_tender_count} tenders without supplier awards excluded. Average supplier total: {formatMoney(data.summary.average_supplier_total)}.</p></div>
+        <AgencyAwardsChart agency={agency} start={filters.start} end={filters.end} above={filters.above} />
         {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Supplier</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Tenders</th><th className="cell-number">Share</th><th>Linked company</th></tr></thead><tbody>{data.items.map(row => <tr key={row.supplier_name}><td className="cell-primary">{row.supplier_name}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.tender_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td><td>{row.company_link.uen ? <Link className="row-link" to={`/companies/${encodeURIComponent(row.company_link.uen)}`}>{row.company_link.name ?? row.company_link.uen}</Link> : 'No confirmed company link'}</td></tr>)}</tbody></table></div> : <EmptyState title="No awards found">Try a different date range or agency.</EmptyState>}
       </>}
       <PanelFooter>
