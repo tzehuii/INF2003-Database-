@@ -6,6 +6,7 @@ import { BookmarkError, SaveCompanyButton } from '../api/bookmarks'
 import { Attribute, AttributeList, EmptyState, LinkedAwardBadge, PageHeading, Panel, RegistryStatusBadge } from '../components/ui'
 import { formatAddressLine, formatDate, formatLevelAndUnit, formatMoney } from '../format'
 import { ResourceStatus } from './publicShared'
+import AddressMap from '../components/AddressMap'
 export default function CompanyDetailPage() {
   const { uen = '' } = useParams()
   const { result, isLoading } = useApiResource<CompanyDetail>(API_ROUTES.companyDetail(uen))
@@ -29,6 +30,7 @@ export default function CompanyDetailPage() {
               <Attribute label="Postal code">{address.postal_code}</Attribute>
               <Attribute label="Other address">{[address.other_address_line1, address.other_address_line2].filter(Boolean).join(', ') || '—'}</Attribute>
             </AttributeList>
+            <AddressMap address={address} companyName={company.name} />
           </div>) : <EmptyState title="No address recorded" />}
       </Panel>
       <Panel title="Business activities"><AttributeList>{(['primary', 'secondary'] as const).map(kind => <Attribute key={kind} label={`${kind === 'primary' ? 'Primary' : 'Secondary'} activity`}>{company.activities[kind] ? <>{company.activities[kind]?.code} — {company.activities[kind]?.title}<p className="muted-text">{company.activities[kind]?.source_description}</p></> : 'No activity recorded'}</Attribute>)}</AttributeList></Panel>

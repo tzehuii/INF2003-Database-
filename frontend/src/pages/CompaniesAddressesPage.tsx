@@ -14,6 +14,7 @@ import { apiRequest } from '../api/client'
 import type { Address } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
 import { useDatabase } from '../databaseContext'
+import AddressMap from '../components/AddressMap'
 import { ConfirmationBanner, EmptyState, InlineError, PageHeading, Panel, PanelFooter, RegistryStatusBadge, SkeletonRows } from '../components/ui'
 
 const BASE = '/api/system/companies'
@@ -261,7 +262,7 @@ function Workspace() {
       <div className="company-address-heading"><h3>Addresses</h3><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing || (database === 'mongodb' && selected.addresses.length > 0)} onClick={() => setEditor({ kind: 'address', company: selected })}>Add address</button></div>
       <p className="company-note">You can manage multiple addresses in MariaDB and one address per company in MongoDB.</p>
       {selected.addresses.length === 0 && <p>No address recorded. Use Add address to create one.</p>}
-      {selected.addresses.map(address => <div className="company-address-card" key={address.id}><dl className="company-address-values">{addressLabels.map(([key, text]) => address[key] ? <div key={key}><dt>{text}</dt><dd>{address[key]}</dd></div> : null)}</dl><div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing} onClick={() => setEditor({ kind: 'address', company: selected, address })}>Edit address</button><button className="button company-delete-button button-sm" disabled={busy || detailRefreshing} onClick={() => remove(selected, address)}>Delete address</button></div></div>)}
+      {selected.addresses.map(address => <div className="company-address-card" key={address.id}><dl className="company-address-values">{addressLabels.map(([key, text]) => address[key] ? <div key={key}><dt>{text}</dt><dd>{address[key]}</dd></div> : null)}</dl><AddressMap address={address} companyName={selected.name} /><div className="company-actions"><button className="button company-edit-button button-sm" disabled={busy || detailRefreshing} onClick={() => setEditor({ kind: 'address', company: selected, address })}>Edit address</button><button className="button company-delete-button button-sm" disabled={busy || detailRefreshing} onClick={() => remove(selected, address)}>Delete address</button></div></div>)}
       </div>
     </Panel>}
     {!detailMode && !editor && <Panel title="Company directory">
