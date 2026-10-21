@@ -16,6 +16,7 @@ type NavItem = { to: string; label: string; icon: IconName; soon: boolean }
 
 const NAVIGATION_ITEMS: NavItem[] = [
   { to: '/companies', label: 'Companies', icon: 'companies', soon: false },
+  { to: '/company-map', label: 'Map', icon: 'globe', soon: false },
   { to: '/agency-awards', label: 'Agency Awards', icon: 'agency', soon: false },
   { to: '/industry-awards', label: 'Industry Awards', icon: 'industry', soon: false },
   { to: '/saved-lists', label: 'Saved Companies', icon: 'saved', soon: false },

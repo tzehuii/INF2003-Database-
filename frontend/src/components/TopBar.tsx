@@ -18,6 +18,7 @@ const ACTIVITIES = `${SYSTEM_BASE_PATH}/business-activities`
 
 const APPLICATION_TITLES: Record<string, string> = {
   '/companies': 'Companies',
+  '/company-map': 'Company Map',
   '/agency-awards': 'Agency Awards',
   '/industry-awards': 'Industry Awards',
   '/saved-lists': 'Saved Lists',

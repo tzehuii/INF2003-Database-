@@ -14,6 +14,8 @@ import { BreadcrumbProvider } from './breadcrumbContext'
 import { DatabaseProvider, useDatabase } from './databaseContext.tsx'
 import AgencyAwardsPage from './pages/AgencyAwardsPage'
 import CompaniesPage from './pages/CompaniesPage'
+import { lazy, Suspense } from 'react'
+const CompanyMapPage = lazy(() => import('./pages/CompanyMapPage'))
 import CompanyDetailPage from './pages/CompanyDetailPage'
 import IndustryAwardsPage from './pages/IndustryAwardsPage'
 import BusinessActivitiesPage from './pages/businessActivities/BusinessActivitiesPage'
@@ -46,6 +48,7 @@ function AppLayout() {
           <Routes>
             <Route path="/" element={<Navigate to="/companies" replace />} />
             <Route path="/companies" element={<CompaniesPage />} />
+            <Route path="/company-map" element={<Suspense fallback={<p className="muted-text">Opening map...</p>}><CompanyMapPage /></Suspense>} />
             <Route path="/companies/:uen" element={<CompanyDetailPage />} />
             <Route path="/agency-awards" element={<AgencyAwardsPage />} />
             <Route path="/industry-awards" element={<IndustryAwardsPage />} />

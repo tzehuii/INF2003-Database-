@@ -285,12 +285,14 @@ def industry_descendants(nodes, code):
 
 
 @router.get("/industries")
-def industries(request: Request, database: Database, parent_code: str | None = None, include_all: bool = False):
+def industries(request: Request, database: Database, parent_code: str | None = None, include_all: bool = False, descendants: bool = False):
     with store(request, database) as db:
         nodes = catalogue(db, database)
         if parent_code and parent_code not in nodes: fail(404, "industry_not_found", "Industry not found.")
         parents = {x["parent"] for x in nodes.values()}
-        items = [{k: n[k] for k in ["code", "title", "level"]} | {"has_children": n["code"] in parents} for n in nodes.values() if include_all or n["parent"] == parent_code]
+        # Optional map picker can narrow a section to any deeper SSIC subcategory.
+        allowed=set(industry_descendants(nodes,parent_code))-{parent_code} if descendants and parent_code else None
+        items = [{k: n[k] for k in ["code", "title", "level"]} | {"has_children": n["code"] in parents} for n in nodes.values() if (n["code"] in allowed if allowed is not None else include_all or n["parent"] == parent_code)]
         return envelope({"items": sorted(items, key=lambda x:x["code"])}, database)
 
 

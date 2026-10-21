@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from .config import load_settings
 from .databases import close_mongodb_client, create_mongodb_client
 from .routes.api import router as api_router
+from .routes.company_map import router as company_map_router
 from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
 from .routes.companies import router as companies_router
@@ -60,3 +61,6 @@ app.include_router(suppliers_router)
 app.include_router(schema_router)
 app.include_router(consistency_router)
 app.include_router(performance_router)
+
+# Read-only active-company map and authoritative address resolution.
+app.include_router(company_map_router)
