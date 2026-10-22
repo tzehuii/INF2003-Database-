@@ -26,6 +26,7 @@ export type IconName =
   | 'gauge'
   | 'schema'
   | 'logo'
+  | 'logout'
 
 const PATHS: Record<IconName, string> = {
   companies: 'M4 21V8l8-4 8 4v13M8 21v-4h8v4M8 10h1M12 10h1M16 10h1M8 14h1M12 14h1M16 14h1',
@@ -48,6 +49,7 @@ const PATHS: Record<IconName, string> = {
   gauge: 'M4 18a8 8 0 1 1 16 0M12 18l4-6M7 13.5l-1-.6M17 13.5l1-.6M12 8V7',
   schema: 'M3 4h7v6H3zM14 14h7v6h-7zM3 7h7M14 17h7M10 7h2v10h2',
   logo: 'm4 10 8-5 8 5M5 19h14M7 11v6M11 11v6M15 11v6M19 11v6',
+  logout: 'M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9',
 }
 
 export function Icon({

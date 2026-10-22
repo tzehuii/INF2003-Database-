@@ -3,8 +3,8 @@
  *
  * A 2px stripe in the selected database's identity colour runs along the top
  * edge. It is drawn from `data-database` on the app shell, so it changes in the
- * same frame as the switch. There is no user icon, account menu, notification
- * area, or authentication control, by design.
+ * same frame as the switch. There is no user icon, account menu, or
+ * notification area; the System view's sign-out lives in the sidebar.
  */
 
 import { Fragment } from 'react'

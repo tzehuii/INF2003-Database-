@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from .config import load_settings
 from .databases import close_mongodb_client, create_mongodb_client
 from .routes.api import router as api_router
+from .routes.auth import require_admin, router as auth_router
 from .routes.company_map import router as company_map_router
 from .routes.business_activities import router as business_activities_router
 from .routes.health import router as health_router
@@ -46,21 +47,25 @@ app = FastAPI(title="INF2003 Business and Tender Analytics API", lifespan=lifesp
 
 app.include_router(health_router)
 app.include_router(api_router)
-app.include_router(business_activities_router)
+app.include_router(auth_router)
+
+# Every System view route requires a signed-in administrator.
+admin_only = [Depends(require_admin)]
+app.include_router(business_activities_router, dependencies=admin_only)
 
 # Company and address maintenance for the System view.
-app.include_router(companies_router)
+app.include_router(companies_router, dependencies=admin_only)
 
 # Tender and award maintenance for the System view.
-app.include_router(tenders_router)
+app.include_router(tenders_router, dependencies=admin_only)
 
 # Supplier maintenance and company links for the System view.
-app.include_router(suppliers_router)
+app.include_router(suppliers_router, dependencies=admin_only)
 
 # MariaDB and MongoDB side by side: schema, data consistency and performance.
-app.include_router(schema_router)
-app.include_router(consistency_router)
-app.include_router(performance_router)
+app.include_router(schema_router, dependencies=admin_only)
+app.include_router(consistency_router, dependencies=admin_only)
+app.include_router(performance_router, dependencies=admin_only)
 
 # Read-only active-company map and authoritative address resolution.
 app.include_router(company_map_router)

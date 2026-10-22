@@ -6,10 +6,11 @@
  * never changes the layout.
  */
 
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
 import { BookmarksProvider } from './api/bookmarks'
+import { AuthProvider, useAuth } from './authContext'
 import { BreadcrumbProvider } from './breadcrumbContext'
 import { DatabaseProvider, useDatabase } from './databaseContext.tsx'
 import AgencyAwardsPage from './pages/AgencyAwardsPage'
@@ -32,10 +33,15 @@ import { SupplierCreatePage, SupplierDetailPage } from './pages/suppliers/Suppli
 import SchemaPage from './pages/diagnostics/SchemaPage'
 import ConsistencyPage from './pages/diagnostics/ConsistencyPage'
 import PerformancePage from './pages/diagnostics/PerformancePage'
-import { DEFAULT_SYSTEM_PATH } from './systemSections'
+import AdminLoginPage from './pages/AdminLoginPage'
+import { DEFAULT_SYSTEM_PATH, isSystemPath } from './systemSections'
 
 function AppLayout() {
   const { database } = useDatabase()
+  const { signedIn } = useAuth()
+  const { pathname } = useLocation()
+  // Every System view page needs the administrator; the Public view stays open.
+  const locked = isSystemPath(pathname) && !signedIn
 
   return (
     // `data-database` drives the identity stripe along the top of the workspace.
@@ -45,6 +51,7 @@ function AppLayout() {
       <div className="app-workspace">
         <TopBar />
         <main className="app-main">
+          {locked ? <AdminLoginPage /> : (
           <Routes>
             <Route path="/" element={<Navigate to="/companies" replace />} />
             <Route path="/companies" element={<CompaniesPage />} />
@@ -77,6 +84,7 @@ function AppLayout() {
             <Route path="/system/:section" element={<SystemSectionPage />} />
             <Route path="*" element={<Navigate to="/companies" replace />} />
           </Routes>
+          )}
         </main>
       </div>
     </div>
@@ -87,11 +95,13 @@ function AppLayout() {
 export default function App() {
   return (
     <DatabaseProvider>
-      <BrowserRouter>
-        <BreadcrumbProvider>
-          <AppLayout />
-        </BreadcrumbProvider>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <BreadcrumbProvider>
+            <AppLayout />
+          </BreadcrumbProvider>
+        </BrowserRouter>
+      </AuthProvider>
     </DatabaseProvider>
   )
 }

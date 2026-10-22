@@ -13,6 +13,8 @@ import unittest
 import urllib.error
 import urllib.request
 
+from backend.tests.admin_auth import sign_in
+
 ROOT = os.environ.get("SCHEMA_API_URL", "http://127.0.0.1:8000")
 
 # The project schema as created by sql/INF2003_Grp1_database_schema_mariadb.sql and the MongoDB archive.
@@ -26,6 +28,7 @@ class SchemaApiTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
+            sign_in(ROOT)
             with urllib.request.urlopen(ROOT + "/api/system/schema", timeout=60) as res:
                 cls.data = json.load(res)["data"]
         except urllib.error.HTTPError as error:

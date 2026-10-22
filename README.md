@@ -101,6 +101,15 @@ Backend and frontend run in separate terminals.
 npm --prefix frontend run dev
 ```
 
+### System view sign-in
+
+The Public view do not need an account. The System view needs the administrator account:
+
+| Username | Password |
+| --- | --- |
+| `admin01` | `INF2003Admin` |
+
+
 ## Connectivity check
 
 ```powershell

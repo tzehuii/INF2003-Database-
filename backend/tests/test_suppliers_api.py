@@ -15,6 +15,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from backend.tests.admin_auth import sign_in
+
 ROOT = os.environ.get("SUPPLIERS_API_URL", "http://127.0.0.1:8000") + "/api/system"
 DATABASES = ["mariadb", "mongodb"]
 
@@ -65,6 +67,7 @@ class SuppliersApiTest(unittest.TestCase):
             urllib.request.urlopen(ROOT.rsplit("/api", 1)[0] + "/health", timeout=10)
         except OSError:
             raise unittest.SkipTest(f"Backend not reachable at {ROOT}. Start it first.")
+        sign_in(ROOT.rsplit("/api", 1)[0])
         for database in DATABASES:
             status, _ = call("GET", "/suppliers", database)
             if status == 404:

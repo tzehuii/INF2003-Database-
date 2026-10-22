@@ -2874,3 +2874,19 @@ html { scrollbar-gutter: stable; }
 /* OWNER: Tzehui - Optional live area filtering waits until map movement settles. */
 .company-map-follow { display: flex; align-items: center; gap: 8px; flex-basis: 100%; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
 .company-map-follow input { width: 15px; height: 15px; accent-color: var(--accent); }
+
+/* Administrator sign-in for the System view. */
+.admin-login {
+  width: 100%;
+  max-width: 400px;
+  margin: 48px auto 0;
+}
+
+.admin-login .button {
+  justify-self: start;
+}
+
+.sidebar-signout {
+  margin-top: auto;
+  justify-content: flex-start;
+}

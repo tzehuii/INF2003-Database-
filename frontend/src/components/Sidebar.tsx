@@ -7,6 +7,7 @@
  */
 
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../authContext'
 import { SYSTEM_BASE_PATH, SYSTEM_SECTIONS, isSystemPath } from '../systemSections'
 import { Icon } from './icons'
 import type { IconName } from './icons'
@@ -37,6 +38,8 @@ function BrandMark() {
 export default function Sidebar() {
   const { pathname } = useLocation()
   const inSystem = isSystemPath(pathname)
+  const { signedIn, logout } = useAuth()
+  // The System navigation stays hidden until the administrator signs in.
   const items: NavItem[] = inSystem
     ? SYSTEM_SECTIONS.map((section) => ({
         to: `${SYSTEM_BASE_PATH}/${section.slug}`,
@@ -45,6 +48,7 @@ export default function Sidebar() {
         soon: !section.built,
       }))
     : NAVIGATION_ITEMS
+  const visibleItems = inSystem && !signedIn ? [] : items
 
   return (
     <aside className="sidebar" aria-label="Business and Tender Analytics">
@@ -63,7 +67,7 @@ export default function Sidebar() {
       <nav aria-label={inSystem ? 'System navigation' : 'Main navigation'}>
         <p className="sidebar-group-label rail-hidden">{inSystem ? 'System' : 'Workspace'}</p>
         <ul className="sidebar-list">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
@@ -79,6 +83,13 @@ export default function Sidebar() {
           ))}
         </ul>
       </nav>
+
+      {inSystem && signedIn && (
+        <button type="button" className="button button-secondary sidebar-signout" onClick={logout}>
+          <Icon name="logout" />
+          <span className="rail-hidden">Sign out admin</span>
+        </button>
+      )}
     </aside>
   )
 }

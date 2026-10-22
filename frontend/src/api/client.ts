@@ -42,6 +42,37 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL
 
 export const API_BASE_URL = configuredBaseUrl ? configuredBaseUrl.replace(/\/+$/, '') : ''
 
+/**
+ * The administrator session token for the System view, or null when signed
+ * out. It lives in sessionStorage so a page reload keeps the session.
+ */
+const AUTH_TOKEN_KEY = 'bta-admin-token'
+
+export function getAuthToken(): string | null {
+  try {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setAuthToken(token: string | null): void {
+  try {
+    if (token === null) sessionStorage.removeItem(AUTH_TOKEN_KEY)
+    else sessionStorage.setItem(AUTH_TOKEN_KEY, token)
+  } catch {
+    // Storage blocked: the session simply does not survive a reload.
+  }
+}
+
+const unauthorizedListeners = new Set<() => void>()
+
+/** Run `listener` when a System route answers 401. Returns the unsubscribe function. */
+export function onUnauthorized(listener: () => void): () => void {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
 /** Response states a caller has to tell apart. */
 export type ApiStateName =
   | 'success'
@@ -225,12 +256,17 @@ export async function apiRequest<T>(
   const { pick = 'data', method = 'GET', body, signal } = options
   const url = `${API_BASE_URL}${path}${buildQueryString({ ...query, database })}`
 
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const token = getAuthToken()
+  if (token !== null) headers.Authorization = `Bearer ${token}`
+
   let response: Response
   try {
     response = await fetch(url, {
       method,
       signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
@@ -243,6 +279,13 @@ export async function apiRequest<T>(
       code: null,
       message: NETWORK_FAILURE_MESSAGE,
     }
+  }
+
+  // The administrator session expired or was never started: sign out. A late
+  // reply to a request sent with an older token must not end a newer session.
+  if (response.status === 401 && getAuthToken() === token) {
+    setAuthToken(null)
+    unauthorizedListeners.forEach((listener) => listener())
   }
 
   // 204 has no body and carries no metadata, which is the documented shape for

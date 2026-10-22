@@ -23,6 +23,7 @@ from pymongo import MongoClient
 
 from backend.app.config import load_settings
 from backend.app.databases import connect_mariadb
+from backend.tests.admin_auth import sign_in
 
 BASE = os.environ.get("COMPANIES_API_URL", "http://127.0.0.1:8000") + "/api/system/companies"
 DATABASES = ["mariadb", "mongodb"]
@@ -82,6 +83,7 @@ class CompaniesApiTest(unittest.TestCase):
             urllib.request.urlopen(BASE.rsplit("/api", 1)[0] + "/health", timeout=10)
         except OSError:
             raise unittest.SkipTest(f"Backend not reachable at {BASE}. Start it first.")
+        sign_in(BASE.rsplit("/api", 1)[0])
 
         # Refuse to delete pre-existing records: fixture UENs must be unused before a run.
         for database in DATABASES:
