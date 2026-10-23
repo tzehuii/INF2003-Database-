@@ -25,6 +25,14 @@ export function formatMoney(amount: string | null | undefined): string {
   return fraction ? `${sign}${grouped}.${fraction}` : `${sign}${grouped}`
 }
 
+/** Short amount for chart labels, for example `S$1.81B` or `S$520.3M`. Tables and tooltips keep the exact figure. */
+export function compactSgd(value: number): string {
+  if (value >= 1e9) return `S$${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `S$${(value / 1e6).toFixed(1)}M`
+  if (value >= 1e3) return `S$${(value / 1e3).toFixed(0)}K`
+  return `S$${value.toFixed(value > 0 && value < 1 ? 2 : 0)}`
+}
+
 /** Format a percentage string, for example `24.16` to `24.16%`. */
 export function formatPercent(percent: string | null | undefined): string {
   if (percent === null || percent === undefined || percent === '') {

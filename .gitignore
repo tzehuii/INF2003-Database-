@@ -11,3 +11,4 @@ __pycache__/
 # Derived address lookup cache (never source company data).
 backend/app/.cache/
 backend/.cache/
+.vscode/settings.json

@@ -2612,6 +2612,10 @@ html { scrollbar-gutter: stable; }
   .agency-chart-track { grid-column: 2; }
 }
 
+/* Industry Awards chart: reuses the agency chart styles, adding the measure switch and clickable bars. */
+.industry-chart-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.industry-chart-row-link { cursor: pointer; }
+
 /* Suppliers: the company-links bar above the directory. */
 .supplier-match { display: grid; gap: 12px; padding: var(--space-4) var(--panel-pad-x); }
 .supplier-match-total { color: var(--text-tertiary); font-size: 12px; font-weight: 400; }

@@ -10,18 +10,10 @@ import { useState } from 'react'
 import { API_ROUTES, isLiveData } from '../api/client'
 import type { AgencyAwardsData } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
-import { formatMoney, formatPercent } from '../format'
+import { compactSgd, formatMoney, formatPercent } from '../format'
 
 const TOP = 10
 const HIDDEN_KEY = 'bta.agencyAwards.chartHidden'
-
-// Short amounts for bar labels (S$1.81B, S$520.3M); the tooltip and the table keep the exact figure.
-function compactSgd(value: number) {
-  if (value >= 1e9) return `S$${(value / 1e9).toFixed(2)}B`
-  if (value >= 1e6) return `S$${(value / 1e6).toFixed(1)}M`
-  if (value >= 1e3) return `S$${(value / 1e3).toFixed(0)}K`
-  return `S$${value.toFixed(value > 0 && value < 1 ? 2 : 0)}`
-}
 
 // Browser storage can be unavailable (private windows, blocked site data); the chart then simply starts shown.
 function readHidden() {
