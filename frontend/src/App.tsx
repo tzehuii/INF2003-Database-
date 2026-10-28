@@ -8,6 +8,8 @@
 
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
+import RouteScroll from './components/RouteScroll'
+import { VisitStateProvider } from './visitState'
 import TopBar from './components/TopBar'
 import { BookmarksProvider } from './api/bookmarks'
 import { AuthProvider, useAuth } from './authContext'
@@ -46,6 +48,7 @@ function AppLayout() {
   return (
     // `data-database` drives the identity stripe along the top of the workspace.
     <BookmarksProvider>
+    <RouteScroll />
     <div className="app-shell" data-database={database}>
       <Sidebar />
       <div className="app-workspace">
@@ -97,9 +100,11 @@ export default function App() {
     <DatabaseProvider>
       <AuthProvider>
         <BrowserRouter>
+          <VisitStateProvider>
           <BreadcrumbProvider>
             <AppLayout />
           </BreadcrumbProvider>
+          </VisitStateProvider>
         </BrowserRouter>
       </AuthProvider>
     </DatabaseProvider>

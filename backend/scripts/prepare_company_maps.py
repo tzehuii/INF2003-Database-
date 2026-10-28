@@ -1,4 +1,4 @@
-r"""OWNER: Tzehui - Prepare stored company locations ahead of a demo or user visit.
+r"""Prepare stored company locations ahead of a demo or user visit.
 
 Start the backend first, then run from the repository root:
   .\.venv\Scripts\python.exe -m backend.scripts.prepare_company_maps --all-industries --database both

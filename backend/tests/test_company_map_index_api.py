@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Read-only live checks for complete industry maps in both databases.
+# Read-only live checks for complete industry maps in both databases.
 import json
 import time
 import unittest

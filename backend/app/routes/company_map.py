@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Public active-company overview and verified map locations.
+# Public active-company overview and verified map locations.
 from typing import Annotated
 from fastapi import APIRouter, Query, Request
 from .api import companies, envelope

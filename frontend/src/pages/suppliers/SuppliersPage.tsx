@@ -46,12 +46,12 @@ export function SuppliersListPage() {
   const navigate = useNavigate()
   const list = useListState()
   const options = useTenderOptions()
-  const resource = useApiResource<ResultPage<SupplierRow>>(API.suppliers, { ...list.applied, page: list.page, limit: PAGE_SIZE })
+  const resource = useApiResource<ResultPage<SupplierRow>>(API.suppliers, { ...list.applied, page: list.page, limit: PAGE_SIZE }, '', {}, true)
   const [filters, setFilters] = useState(list.applied)
   const [error, setError] = useState('')
   const set = (key: keyof SupplierFilters) => (value: string) => setFilters(f => ({ ...f, [key]: value }))
 
-  // Keep the previous rows visible (but inactive) while a new page or database loads.
+  // retain rows and paging during switches; old database actions stay disabled until refreshed.
   const previous = useRef<ResultPage<SupplierRow> | null>(null)
   const result = resource.result
   const current = result?.state === 'success' && result.database === database ? result.body : null

@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { API_ROUTES, isLiveData } from '../api/client'
 import type { CompanyDetail, CompanyAwardsData } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
@@ -7,16 +7,19 @@ import { Attribute, AttributeList, LinkedAwardBadge, PageHeading, Panel, Registr
 import { formatAddressLine, formatDate, formatLevelAndUnit, formatMoney } from '../format'
 import { ResourceStatus } from './publicShared'
 import AddressMap from '../components/AddressMap'
+import { companyReturnTarget } from '../navigationState'
 export default function CompanyDetailPage() {
   const { uen = '' } = useParams()
+  const location = useLocation()
+  const back = companyReturnTarget(location.state)
   const { result, isLoading } = useApiResource<CompanyDetail>(API_ROUTES.companyDetail(uen))
   const awards = useApiResource<CompanyAwardsData>(API_ROUTES.companyAwards(uen), { limit: 100 })
   const company = isLiveData(result) ? result.body : null
   return <>
-    <PageHeading icon="companies" title={company?.name ?? (company ? uen : 'Company details')} meta={company ? <><span className="mono">{uen}</span><RegistryStatusBadge status={company.status} /></> : undefined} actions={<><Link className="button button-secondary" to="/companies">Back to companies</Link>{company && <SaveCompanyButton uen={uen} />}</>} />
+    <PageHeading icon="companies" title={company?.name ?? (company ? uen : 'Company details')} meta={company ? <><span className="mono">{uen}</span><RegistryStatusBadge status={company.status} /></> : undefined} actions={<><Link className="button button-secondary" to={back.path} state={{ restoreScrollKey: back.scrollKey }}>{back.label}</Link>{company && <SaveCompanyButton uen={uen} />}</>} />
     <BookmarkError /><ResourceStatus result={result} loading={isLoading} />
     {company && <>
-      {/* OWNER: Tzehui - One card groups readable company sections without large empty panels. */}
+      {/* One card groups readable company sections without large empty panels. */}
       <Panel title="Company information" className="company-info-card">
       <section className="company-info-section" aria-label="Registered details"><h3 className="company-info-heading">Registered details</h3><AttributeList columns={2}><Attribute label="UEN">{company.uen}</Attribute><Attribute label="Registered date">{formatDate(company.incorporation_date)}</Attribute><Attribute label="Linked awards"><LinkedAwardBadge hasLinkedAward={company.has_linked_award} /></Attribute></AttributeList></section>
       {/* Public and System both show the complete address list from the selected database. */}
@@ -38,7 +41,7 @@ export default function CompanyDetailPage() {
       <section className="company-info-section" aria-label="Former names"><h3 className="company-info-heading">Former names</h3>{company.former_names.length ? <ul className="plain-list">{company.former_names.map((name, i) => <li key={i}>{name}</li>)}</ul> : <p className="company-info-empty">No former names recorded.</p>}</section>
       <section className="company-info-section" aria-label="Linked awards"><h3 className="company-info-heading">Linked awards</h3><ResourceStatus result={awards.result} loading={awards.isLoading} />{isLiveData(awards.result) && (awards.result.body.items.length ? <><div className="table-scroll"><table className="table"><thead><tr><th>Tender</th><th>Agency</th><th>Supplier</th><th>Date</th><th className="cell-number">Amount (SGD)</th></tr></thead><tbody>{awards.result.body.items.map((row, i) => <tr key={`${row.tender_no}-${i}`}><td><span className="cell-id">{row.tender_no}</span><p>{row.tender_description}</p></td><td>{row.agency_name}</td><td>{row.supplier_name}</td><td className="cell-nowrap">{formatDate(row.award_date)}</td><td className="cell-number">{formatMoney(row.amount)}</td></tr>)}</tbody></table></div>{awards.result.meta?.pagination.has_more && <p className="panel-pad muted-text">Showing the most recent 100 linked awards.</p>}</> : <p className="company-info-empty">No linked awards. No awards have an accepted supplier link to this company.</p>)}</section>
       </Panel>
-      {/* OWNER: Tzehui - Keep optional maps after the company information for easier reading. */}
+      {/* Keep optional maps after the company information for easier reading. */}
       <Panel title="Address maps">
         {(company.addresses ?? (company.address ? [company.address] : [])).length ?
           (company.addresses ?? (company.address ? [company.address] : [])).map((address, index) => <div className="public-company-address" key={index}>

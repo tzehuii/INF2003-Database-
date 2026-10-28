@@ -2340,6 +2340,19 @@ html { scrollbar-gutter: stable; }
 .tender-status-interface { color: #155e75; background: #ecfeff; border-color: #a5f3fc; }
 .tender-status-other { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
 
+/* nested search controls must not inherit a 320px vertical flex basis. */
+.public-company-filter-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: start; }
+.public-company-search > .search-input { flex: none; width: 100%; max-width: none; height: 32px; }
+.public-company-search > small { margin: 0; line-height: 18px; }
+.public-company-filter-row > .checkbox-item { margin-top: 24px; }
+@container (max-width: 760px) {
+  .public-company-filter-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .public-company-filter-row > .checkbox-item { grid-column: 1 / -1; margin-top: 0; }
+}
+@container (max-width: 480px) {
+  .public-company-filter-row { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Keep the optional public industry picker below the existing company filters. */
 .public-industry-filter { margin-top: 16px; align-items: flex-end; }
 .public-industry-filter .field-grow { max-width: 720px; }
@@ -2679,7 +2692,7 @@ html { scrollbar-gutter: stable; }
 .company-overview-map .leaflet-popup-content { max-height: 220px; overflow: auto; line-height: 1.6; }
 @media (max-width: 900px) { .company-map-layout { grid-template-columns: 1fr; } .company-overview-map { height: 420px; } .company-map-list { height: 400px; border-left: 0; } }
 
-/* OWNER: Tzehui - Comfortable disclaimer spacing and red, counted map clusters. */
+/* Comfortable disclaimer spacing and red, counted map clusters. */
 .address-map > .postal-map-disclaimer { margin: 8px 18px 20px; }
 .postal-map-disclaimer { padding: 20px 22px; overflow-wrap: anywhere; }
 .postal-map-disclaimer p { max-width: 95ch; margin: 10px 0 12px; line-height: 1.75; }
@@ -2695,7 +2708,7 @@ html { scrollbar-gutter: stable; }
 @media (max-width: 900px) { .company-map-side { height: 440px; border-left: 0; } }
 @media (max-width: 500px) { .address-map > .postal-map-disclaimer { margin: 8px 12px 16px; } .postal-map-disclaimer { padding: 16px; } }
 
-/* OWNER: Tzehui - Group public company details in one card with compact section dividers. */
+/* Group public company details in one card with compact section dividers. */
 .company-info-section { padding: 22px 24px; }
 .company-info-section + .company-info-section { border-top: 1px solid var(--border); }
 .company-info-heading { margin: 0 0 16px; color: var(--text-secondary); font-size: 15px; font-weight: 600; }
@@ -2706,16 +2719,16 @@ html { scrollbar-gutter: stable; }
 @media (max-width: 600px) { .company-info-section { padding: 18px 16px; } }
 
 
-/* OWNER: Tzehui - Explicit area searches keep the list stable while exploring. */
+/* Explicit area searches keep the list stable while exploring. */
 .company-map-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px 20px; border-top: 1px solid var(--border); min-height: 66px; }
 .company-map-controls .muted-text { font-size: 12px; }
 .company-map-summary { min-height: 72px; align-items: center; }
 
-/* OWNER: Tzehui - Full-index company search stays above the independently scrolling list. */
+/* Full-index company search stays above the independently scrolling list. */
 .company-map-list-search { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .company-map-list-search .field-label { font-size: 12px; }
 
-/* OWNER: Tzehui - Keep filters and results beside the map instead of above it. */
+/* Keep filters and results beside the map instead of above it. */
 .company-map-page .page-header { margin-bottom: 20px; }
 .company-map-workspace { --map-height: clamp(480px, calc(100dvh - 230px), 760px); grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr); border-top: 0; }
 .company-map-workspace .company-overview-map { height: var(--map-height); }
@@ -2745,7 +2758,7 @@ html { scrollbar-gutter: stable; }
   .company-map-workspace .company-map-side { height: 540px; border-top: 1px solid var(--border); }
 }
 
-/* OWNER: Tzehui - Fixed map workspace; only the result list scrolls on desktop. */
+/* Fixed map workspace; only the result list scrolls on desktop. */
 .company-map-visual { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .company-map-visual .company-map-accuracy { margin: 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 10px 16px; flex-shrink: 0; }
 .company-map-workspace .company-map-side { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
@@ -2789,19 +2802,19 @@ html { scrollbar-gutter: stable; }
 .company-map-results .company-map-tabs { padding-block: 8px; }
 .company-map-results .company-map-card { padding: 14px 16px; }
 
-/* OWNER: Tzehui - Accuracy guidance stays visible above the map, without a disclosure. */
+/* Accuracy guidance stays visible above the map, without a disclosure. */
 .company-map-visual .company-map-accuracy-notice { max-height: none; overflow: visible; padding: 14px 18px; }
 .company-map-accuracy-notice h2 { margin: 0 0 8px; color: #233d80; font-size: 13px; font-weight: 600; line-height: 1.5; }
 .company-map-accuracy-notice > .muted-text { margin: 0 0 8px; }
 .company-map-accuracy-notice p { line-height: 1.65; text-wrap: pretty; }
 .company-map-accuracy-notice .postal-map-disclaimer p { margin: 0 0 8px; }
 
-/* OWNER: Tzehui - Plain introductory note spans the page above both map columns. */
+/* Plain introductory note spans the page above both map columns. */
 .company-map-page > .page-header { margin-bottom: 8px; }
 .company-map-intro-note { flex-shrink: 0; margin: 0 0 16px; color: var(--text-secondary); font-size: 12px; line-height: 1.65; text-wrap: pretty; overflow-wrap: break-word; }
 .company-map-intro-note a { color: var(--accent); }
 
-/* OWNER: Tzehui - A compact notice with consistent edges and comfortable text wrapping. */
+/* A compact notice with consistent edges and comfortable text wrapping. */
 .company-map-page > .page-header { margin-bottom: 12px; }
 .company-map-intro-notice { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: start; gap: 12px; flex-shrink: 0; padding: 14px 18px; margin: 0 0 16px; border: 1px solid #e9ddc4; border-left: 3px solid #c9a564; border-radius: 10px; background: #fffbf2; color: #655f53; box-shadow: 0 2px 8px rgba(104, 79, 34, .035); }
 .company-map-intro-notice p { margin: 0; padding-top: 2px; font-size: 12px; line-height: 1.75; text-wrap: pretty; overflow-wrap: break-word; }
@@ -2815,7 +2828,7 @@ html { scrollbar-gutter: stable; }
 .company-map-results > .company-map-section-title { margin-left: 16px; margin-right: 16px; }
 @media (max-width: 999px) { .company-map-workspace .company-map-side { border-left: 0; } }
 
-/* OWNER: Tzehui - Compact, accessible control disclosure preserves room for results. */
+/* Compact, accessible control disclosure preserves room for results. */
 .company-map-controls-toggle { flex-shrink: 0; padding: 10px 16px; border-bottom: 1px solid var(--border); background: #f8f9fc; }
 .company-map-controls-toggle > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 5px 0; border: 0; background: transparent; color: #29467e; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
 .company-map-controls-toggle > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
@@ -2826,7 +2839,7 @@ html { scrollbar-gutter: stable; }
 .company-map-browse-controls .company-map-list-note { padding: 10px 16px; }
 .company-map-side > .company-map-summary { flex-shrink: 0; }
 
-/* OWNER: Tzehui - Show checked-address progress separately from pending map locations. */
+/* Show checked-address progress separately from pending map locations. */
 .company-map-progress-label, .company-map-progress-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; }
 .company-map-progress { display: block; width: 100%; height: 7px; border: 0; border-radius: 99px; overflow: hidden; background: #e6eaf3; accent-color: #4163ce; }
 .company-map-progress::-webkit-progress-bar { background: #e6eaf3; border-radius: 99px; }
@@ -2839,7 +2852,7 @@ html { scrollbar-gutter: stable; }
 .company-map-toolbar .field-label { font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .company-map-progress::-webkit-progress-value { transition: none; } }
 
-/* OWNER: Tzehui - Selection sits above the map; the right column is reserved for results. */
+/* Selection sits above the map; the right column is reserved for results. */
 .company-map-top-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 400px); align-items: center; border-bottom: 1px solid var(--border); background: #fff; }
 .company-map-top-controls > .company-map-controls-toggle { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; grid-column: 1; grid-row: 1; border: 0; background: transparent; padding: 12px 18px; }
 .company-map-top-controls .company-map-controls-toggle > button { width: auto; gap: 18px; }
@@ -2875,7 +2888,7 @@ html { scrollbar-gutter: stable; }
   .company-map-top-controls .toolbar-row-fields { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* OWNER: Tzehui - Optional live area filtering waits until map movement settles. */
+/* Optional live area filtering waits until map movement settles. */
 .company-map-follow { display: flex; align-items: center; gap: 8px; flex-basis: 100%; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
 .company-map-follow input { width: 15px; height: 15px; accent-color: var(--accent); }
 
@@ -2894,3 +2907,65 @@ html { scrollbar-gutter: stable; }
   margin-top: auto;
   justify-content: flex-start;
 }
+
+
+/* give directories more room, while keeping a readable sidebar. */
+@media (min-width: 1001px) {
+  .app-shell { grid-template-columns: 208px minmax(0, 1fr); }
+  .app-main { max-width: 1480px; padding: 28px 28px 48px; }
+  .sidebar { padding-left: 10px; padding-right: 10px; }
+  .sidebar-brand { padding: 0 4px; height: auto; min-height: 32px; }
+  .sidebar-brand-full { white-space: normal; font-size: 10px; line-height: 13px; }
+  .sidebar-link { padding-left: 8px; padding-right: 8px; gap: 8px; }
+}
+/* Fit company columns to the panel; wrap names, statuses and addresses instead of widening it. */
+.public-companies-table, .company-directory-table { width: 100%; table-layout: fixed; }
+.public-companies-table th, .public-companies-table td,
+.company-directory-table th, .company-directory-table td {
+  min-width: 0; max-width: none; white-space: normal; overflow-wrap: anywhere; padding: 12px 10px; line-height: 1.5;
+}
+.public-companies-table th { height: auto; min-height: 40px; }
+.public-companies-table .industry-sort { white-space: normal; text-align: left; }
+.public-companies-table .registry-status, .company-directory-table .registry-status { white-space: normal; max-width: 100%; }
+.public-companies-table th:nth-child(1) { width: 5%; }
+.public-companies-table th:nth-child(2) { width: 22%; }
+.public-companies-table th:nth-child(3) { width: 12%; }
+.public-companies-table th:nth-child(4) { width: 15%; }
+.public-companies-table th:nth-child(5) { width: 12%; }
+.public-companies-table th:nth-child(6) { width: 25%; }
+.public-companies-table th:nth-child(7) { width: 9%; }
+.public-companies-table .bookmark-column { padding-left: 4px; padding-right: 4px; }
+.public-companies-table .bookmark-button { width: 28px; height: 32px; padding: 6px; }
+.company-directory-table th:nth-child(1) { width: 13%; }
+.company-directory-table th:nth-child(2) { width: 23%; }
+.company-directory-table th:nth-child(3) { width: 18%; }
+.company-directory-table th:nth-child(4) { width: 13%; }
+.company-directory-table th:nth-child(5) { width: 21%; }
+.company-directory-table th:nth-child(6) { width: 12%; }
+.company-directory-table td:nth-child(2) { min-width: 0; }
+.company-directory-table td:last-child { white-space: normal; }
+.company-directory-table .button { white-space: normal; min-width: 0; max-width: 100%; padding: 6px 8px; }
+.public-company-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 20px; }
+/* On narrow panels use labelled records; sorting buttons stay visible above the list. */
+@container (max-width: 700px) {
+  .public-companies-table, .public-companies-table tbody,
+  .company-directory-table, .company-directory-table tbody { display: block; }
+  .public-companies-table thead { display: block; }
+  .public-companies-table thead tr { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; background: #eaf0ff; }
+  .public-companies-table thead th { display: block; width: auto; padding: 0; border: 0; position: static; }
+  .public-companies-table thead th:first-child, .public-companies-table thead th:last-child { display: none; }
+  .public-companies-table .industry-sort { padding: 4px 6px; font-size: 12px; }
+  .company-directory-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .public-companies-table tbody tr, .company-directory-table tbody tr { display: block; border-bottom: 1px solid var(--border); padding: 10px 0; }
+  .public-companies-table tbody td, .company-directory-table tbody td {
+    display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: start; gap: 12px; height: auto; width: 100%; border: 0; padding: 6px 14px; text-align: left;
+  }
+  .public-companies-table tbody td::before, .company-directory-table tbody td::before { content: attr(data-label); font-weight: 600; font-size: 12px; color: var(--text-secondary); }
+  .company-directory-table tbody .button { justify-self: start; }
+  .public-company-pagination { padding: 12px; }
+  .public-company-pagination .agency-pagination-controls { justify-content: flex-start; }
+}
+/* Keep edge-cell padding and compact badges inside the fixed company columns. */
+.public-companies-table th.bookmark-column, .public-companies-table td.bookmark-column { padding-left: 4px; padding-right: 4px; }
+.public-companies-table th:last-child, .public-companies-table td:last-child { padding-right: 8px; }
+.public-companies-table .badge, .company-directory-table .badge { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }

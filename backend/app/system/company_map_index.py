@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Persistent derived map index; source databases remain unchanged.
+# Persistent derived map index; source databases remain unchanged.
 from contextlib import contextmanager
 import json
 import math

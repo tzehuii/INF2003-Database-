@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { apiRequest, API_ROUTES } from '../api/client'
-import type { SavedListDetail, SavedListEntry, SavedListSummary } from '../api/client'
+import { apiRequest } from '../api/client'
+import { BookmarkStore } from './bookmarkStore'
+import type { SavedListEntry } from '../api/client'
 import { useDatabase } from '../databaseContext'
 import { Icon } from '../components/icons'
 
@@ -11,84 +12,49 @@ type Bookmarks = {
 }
 const Context = createContext<Bookmarks | null>(null)
 
-/** One browser's bookmark list in each database; company records stay in the database. */
+/** share bookmark membership across switches and mirror both saved lists. */
 export function BookmarksProvider({ children }: { children: ReactNode }) {
   const { database } = useDatabase()
-  // Keep the page mounted; ignore bookmark responses from a database we have left.
-  const activeDatabase = useRef(database)
-  activeDatabase.current = database
-  const storageKey = `bta:bookmarks:${database}`
-  const listId = useRef<string | null>(null)
-  const creating = useRef<Promise<string> | null>(null)
-  const [entries, setEntries] = useState<SavedListEntry[]>([])
-  const [loading, setLoading] = useState(true)
+  const [store] = useState(() => new BookmarkStore(localStorage, apiRequest))
+  const [entries, setEntries] = useState<SavedListEntry[]>(store.entries)
+  const [loading, setLoading] = useState(store.entries.length === 0)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<string[]>([])
   const [version, setVersion] = useState(0)
+  const mounted = useRef(false)
+  const refreshVersion = useRef(0)
+  const publish = useCallback(() => { if (mounted.current) setEntries([...store.entries]) }, [store])
+  useEffect(() => {
+    mounted.current = true
+    // Follow saves in another tab without starting a sync loop between tabs.
+    const changed = (event: StorageEvent) => {
+      if (event.key === 'bta:bookmarks:shared:v1') setEntries([...store.storedEntries])
+    }
+    window.addEventListener('storage', changed)
+    return () => { mounted.current = false; window.removeEventListener('storage', changed) }
+  }, [store])
 
   useEffect(() => {
-    let current = true
-    const controller = new AbortController()
-    async function load() {
-      setLoading(true); setError(''); setPending([]); creating.current = null
-      try {
-        const id = localStorage.getItem(storageKey)
-        listId.current = id
-        const loaded: SavedListEntry[] = []
-        if (id) {
-          let offset = 0
-          while (true) {
-            const result = await apiRequest<SavedListDetail>(API_ROUTES.savedListDetail(id), database, { limit: 100, offset }, { signal: controller.signal })
-            if (result.state !== 'success') {
-              if (!current) return
-              if (result.status === 404) {
-                localStorage.removeItem(storageKey); listId.current = null; break
-              }
-              throw new Error(result.message)
-            }
-            loaded.push(...result.body.entries)
-            if (!result.meta?.pagination.has_more) break
-            offset = result.meta.pagination.next_offset!
-          }
-        }
-        if (current) setEntries(loaded)
-      } catch (e) {
-        if (current) setError(e instanceof Error ? e.message : 'Could not load saved companies.')
-      } finally { if (current) setLoading(false) }
-    }
-    void load()
-    return () => { current = false; controller.abort() }
-  }, [database, storageKey, version])
-
-  async function ensureList(): Promise<string> {
-    if (listId.current) return listId.current
-    if (!creating.current) {
-      creating.current = (async () => {
-        const result = await apiRequest<SavedListSummary>(API_ROUTES.savedLists, database, {}, { method: 'POST', body: { name: `Bookmarks ${crypto.randomUUID()}` } })
-        if (result.state !== 'success') throw new Error(result.message)
-        localStorage.setItem(storageKey, result.body.id)
-        if (activeDatabase.current === database) listId.current = result.body.id
-        return result.body.id
-      })().finally(() => { if (activeDatabase.current === database) creating.current = null })
-    }
-    return creating.current
-  }
+    const request = ++refreshVersion.current
+    void store.refresh(database, publish).then(message => {
+      if (mounted.current && request === refreshVersion.current) { setError(message); setLoading(false) }
+    }).catch(() => {
+      if (mounted.current && request === refreshVersion.current) { setError('Could not load saved companies. Please retry.'); setLoading(false) }
+    })
+  }, [database, store, publish, version])
 
   async function change(uen: string, remove: boolean) {
     setPending(old => [...old, uen]); setError('')
     try {
-      const id = remove ? listId.current : await ensureList()
-      if (!id || activeDatabase.current !== database) return false
-      const path = `${API_ROUTES.savedListDetail(id)}/companies${remove ? `/${encodeURIComponent(uen)}` : ''}`
-      const result = await apiRequest<SavedListEntry>(path, database, {}, { method: remove ? 'DELETE' : 'POST', body: remove ? undefined : { company_uen: uen } })
-      if (activeDatabase.current !== database) return false
-      if (result.state !== 'success') throw new Error(result.message)
-      setEntries(old => remove ? old.filter(x => x.company_uen !== uen) : old.some(x => x.company_uen === uen) ? old : [...old, result.body])
+      await store.change(uen, remove, publish)
+      // Membership updates immediately; an unavailable mirror is retried on reload/switch.
+      void store.refresh(database, publish).then(message => { if (mounted.current) setError(message) }).catch(() => { if (mounted.current) setError('Your bookmarks are kept in this browser, but sync could not finish. Please retry.') })
       return true
-    } catch (e) { if (activeDatabase.current === database) setError(e instanceof Error ? e.message : 'Could not update saved companies.'); return false }
-    finally { if (activeDatabase.current === database) setPending(old => old.filter(x => x !== uen)) }
+    } catch (e) {
+      if (mounted.current) setError(e instanceof Error ? e.message : 'Could not update saved companies.')
+      return false
+    } finally { if (mounted.current) setPending(old => old.filter(x => x !== uen)) }
   }
-
   const reload = useCallback(() => setVersion(x => x + 1), [])
   return <Context.Provider value={{ entries, loading, error, pending, save: uen => change(uen, false), remove: uen => change(uen, true), reload }}>{children}</Context.Provider>
 }
@@ -108,6 +74,6 @@ export function SaveCompanyButton({ uen }: { uen: string }) {
 }
 
 export function BookmarkError() {
-  const { error } = useBookmarks()
-  return error ? <p className="banner banner-warning" role="alert">{error}</p> : null
+  const { error, reload } = useBookmarks()
+  return error ? <div className="banner banner-warning" role="alert"><p className="banner-text">{error}</p><button type="button" className="button button-secondary button-sm" onClick={reload}>Retry sync</button></div> : null
 }

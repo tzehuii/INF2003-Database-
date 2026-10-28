@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Complete map coverage must not depend on a list page or browser scroll.
+# Complete map coverage must not depend on a list page or browser scroll.
 import json
 import tempfile
 import threading

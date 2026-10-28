@@ -1,6 +1,6 @@
 # Company overview map
 
-OWNER: Tzehui
+
 
 ## Search and coverage
 

@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Active company map and address resolution.
+# Active company map and address resolution.
 # Keep source addresses unchanged; only exact, unambiguous OneMap matches become pins.
 from datetime import datetime, timezone
 import hashlib

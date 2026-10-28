@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useVisitState } from '../visitState'
+import CompanyLink from '../components/CompanyLink'
 import { API_ROUTES, isLiveData } from '../api/client'
 import type { AgenciesData, AgencyAwardsData } from '../api/client'
 import { useApiResource } from '../api/useApiResource'
@@ -9,14 +10,17 @@ import { ResourceStatus } from './publicShared'
 import AgencyAwardsChart from './AgencyAwardsChart'
 const EMPTY = { agency: '', start: '', end: '', above: false }
 export default function AgencyAwardsPage() {
-  const [draft, setDraft] = useState(EMPTY)
-  const [filters, setFilters] = useState(EMPTY)
-  const [pageSize, setPageSize] = useState(25)
-  const [offset, setOffset] = useState(0)
+  const [draft, setDraft] = useVisitState('agency:draft', EMPTY)
+  const [filters, setFilters] = useVisitState('agency:filters', EMPTY)
+  const [pageSize, setPageSize] = useVisitState('agency:page-size', 25)
+  const [offset, setOffset] = useVisitState('agency:offset', 0)
   const [pageDraft, setPageDraft] = useState("1")
   useEffect(() => { setPageDraft(String(offset / pageSize + 1)) }, [offset, pageSize])
   const agencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100 }, '', {}, true)
   const moreAgencies = useApiResource<AgenciesData>(API_ROUTES.agencies, { limit: 100, offset: 100 }, '', {}, true)
+  // two agency requests share one failure notice and retry action.
+  const agencyFailure = [agencies.result, moreAgencies.result].find(result => result && result.state !== 'success') ?? null
+  const agenciesLoading = agencies.isLoading || moreAgencies.isLoading
   const names = [...(isLiveData(agencies.result) ? agencies.result.body.items : []), ...(isLiveData(moreAgencies.result) ? moreAgencies.result.body.items : [])]
   const firstAgency = names[0]?.agency_name ?? ''
   const agency = filters.agency || firstAgency
@@ -28,18 +32,18 @@ export default function AgencyAwardsPage() {
     <Panel title="Supplier awards">
       <form className="toolbar" onSubmit={e => { e.preventDefault(); setFilters({ ...draft, agency: draft.agency || firstAgency }); setOffset(0) }}>
         <div className="toolbar-row toolbar-row-fields">
-          <label className="field field-grow"><span className="field-label">Agency</span><select className="input" value={draft.agency || firstAgency} onChange={e => setDraft({ ...draft, agency: e.target.value })}>{!names.length && <option value="">Loading agencies…</option>}{names.map(x => <option key={x.agency_name}>{x.agency_name}</option>)}</select></label>
+          <label className="field field-grow"><span className="field-label">Agency</span><select className="input" value={draft.agency || firstAgency} onChange={e => setDraft({ ...draft, agency: e.target.value })}>{!names.length && <option value={draft.agency}>{draft.agency || (agenciesLoading ? 'Loading agencies…' : agencyFailure ? 'Agencies unavailable' : 'No agencies available')}</option>}{names.map(x => <option key={x.agency_name}>{x.agency_name}</option>)}</select></label>
           <label className="field"><span className="field-label">Start date</span><input className="input" type="date" value={draft.start} onChange={e => setDraft({ ...draft, start: e.target.value })} /></label>
           <label className="field"><span className="field-label">End date</span><input className="input" type="date" min={draft.start || undefined} value={draft.end} onChange={e => setDraft({ ...draft, end: e.target.value })} /></label>
           <label className="checkbox-item"><input type="checkbox" checked={draft.above} onChange={e => setDraft({ ...draft, above: e.target.checked })} />Above average only</label>
           <button className="button button-primary" disabled={!firstAgency}>Search</button><button type="button" className="button button-secondary" onClick={() => { setDraft(EMPTY); setFilters(EMPTY); setOffset(0) }}>Reset</button>
         </div>
       </form>
-      <ResourceStatus result={agencies.result} loading={agencies.isLoading && !isLiveData(agencies.result)} /><ResourceStatus result={moreAgencies.result} loading={false} /><ResourceStatus result={result} loading={isLoading && !data} />
+      <ResourceStatus result={agencyFailure} loading={agenciesLoading && !names.length} />{agencyFailure && <div className="panel-pad"><button type="button" className="button button-secondary" onClick={()=>{agencies.reload();moreAgencies.reload()}}>Retry agencies</button></div>}{!agencyFailure && <ResourceStatus result={result} loading={isLoading && !data} />}
       {data && <>
         <div className="stat-band"><dl className="stat-strip"><div className="stat"><dt className="stat-label">Suppliers</dt><dd className="stat-value">{data.summary.supplier_count}</dd></div><div className="stat"><dt className="stat-label">Tenders</dt><dd className="stat-value">{data.summary.tender_count}</dd></div><div className="stat"><dt className="stat-label">Total awards (SGD)</dt><dd className="stat-value">{formatMoney(data.summary.total_award_amount)}</dd></div></dl><p className="stat-footnote">{data.summary.excluded_no_supplier_tender_count} tenders without supplier awards excluded. Average supplier total: {formatMoney(data.summary.average_supplier_total)}.</p></div>
         <AgencyAwardsChart agency={agency} start={filters.start} end={filters.end} above={filters.above} />
-        {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Supplier</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Tenders</th><th className="cell-number">Share</th><th>Linked company</th></tr></thead><tbody>{data.items.map(row => <tr key={row.supplier_name}><td className="cell-primary">{row.supplier_name}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.tender_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td><td>{row.company_link.uen ? <Link className="row-link" to={`/companies/${encodeURIComponent(row.company_link.uen)}`}>{row.company_link.name ?? row.company_link.uen}</Link> : 'No confirmed company link'}</td></tr>)}</tbody></table></div> : <EmptyState title="No awards found">Try a different date range or agency.</EmptyState>}
+        {data.items.length ? <div className="table-scroll"><table className="table"><thead><tr><th>Supplier</th><th className="cell-number">Total awards (SGD)</th><th className="cell-number">Tenders</th><th className="cell-number">Share</th><th>Linked company</th></tr></thead><tbody>{data.items.map(row => <tr key={row.supplier_name}><td className="cell-primary">{row.supplier_name}</td><td className="cell-number">{formatMoney(row.total_award_amount)}</td><td className="cell-number">{row.tender_count}</td><td className="cell-number">{formatPercent(row.share_percent)}</td><td>{row.company_link.uen ? <CompanyLink uen={row.company_link.uen}>{row.company_link.name ?? row.company_link.uen}</CompanyLink> : 'No confirmed company link'}</td></tr>)}</tbody></table></div> : <EmptyState title="No awards found">Try a different date range or agency.</EmptyState>}
       </>}
       <PanelFooter>
         {/* Keep page navigation together; changing page size keeps the search and current page where possible. */}

@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Tests for Company and Address Management (System view)
+# Tests for Company and Address Management (System view)
 # Integration tests for /api/system/companies against the real MariaDB and MongoDB data.
 
 # How to run (backend must already be running, both databases reachable):

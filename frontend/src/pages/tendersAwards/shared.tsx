@@ -84,10 +84,10 @@ export function TenderStatusBadge({ status }: { status: string }) {
 
 // Agencies and statuses for the dropdowns, read from the selected database.
 export function useTenderOptions() {
-  const { database } = useDatabase()
-  const resource = useApiResource<{ agencies: string[]; statuses: string[] }>(API.options)
+  // keep dropdown choices stable while the selected database reloads.
+  const resource = useApiResource<{ agencies: string[]; statuses: string[] }>(API.options, {}, '', {}, true)
   const result = resource.result
-  const ok = result?.state === 'success' && result.database === database
+  const ok = result?.state === 'success'
   return {
     agencies: ok ? result.body.agencies : [], statuses: ok ? result.body.statuses : [],
     failed: !resource.isLoading && result !== null && result.state !== 'success', reload: resource.reload,

@@ -27,35 +27,34 @@ import {
   SkeletonRows,
   StatusBadge,
 } from '../../components/ui'
-import { useDatabase } from '../../databaseContext.tsx'
 import {
   ACTIVITIES_PATH,
   useFlashNotice,
   ActivityCode,
   ActivityError,
   HighlightMatch,
-  currentFor,
   levelClass,
   useBrowse,
 } from './shared'
 
 function TreeLevel({ parentCode }: { parentCode: string | null }) {
-  const { database } = useDatabase()
   const { section, expanded, toggle } = useBrowse()
-  const { result, isLoading, reload } = useApiResource<ActivityChildrenData>(
+  const { result, reload } = useApiResource<ActivityChildrenData>(
     API_ROUTES.activityChildren,
     {
       parent_code: parentCode ?? undefined,
       // The Section filter narrows the top level. Everything below is already inside it.
       section: parentCode === null ? section || undefined : undefined,
     },
+    '', {}, true,
   )
 
   const isRoot = parentCode === null
-  const current = currentFor(result, database)
+  // keep catalogue rows mounted while the new database responds.
+  const current = result
 
   // Skeleton rows match the final row height, so nothing above them moves.
-  if (current === null || isLoading) {
+  if (current === null) {
     return isRoot ? (
       <SkeletonRows count={8} label="Loading the catalogue" />
     ) : (
@@ -152,16 +151,14 @@ function TreeLevel({ parentCode }: { parentCode: string | null }) {
 
 function SearchResults({
   current,
-  isLoading,
   query,
   section,
 }: {
   current: ApiResult<ActivitySearchData> | null
-  isLoading: boolean
   query: string
   section: string
 }) {
-  if (current === null || isLoading) {
+  if (current === null) {
     return <SkeletonRows count={6} height={44} label="Searching" />
   }
   if (current.state !== 'success') {
@@ -232,12 +229,11 @@ function SearchResults({
 }
 
 export default function CataloguePage() {
-  const { database } = useDatabase()
   const browse = useBrowse()
   const { notice, dismiss: dismissNotice } = useFlashNotice()
 
-  const sections = useApiResource<ActivityChildrenData>(API_ROUTES.activityChildren)
-  const sectionResult = currentFor(sections.result, database)
+  const sections = useApiResource<ActivityChildrenData>(API_ROUTES.activityChildren, {}, '', {}, true)
+  const sectionResult = sections.result
   const sectionOptions =
     sectionResult !== null && sectionResult.state === 'success' ? sectionResult.body.items : []
 
@@ -248,8 +244,9 @@ export default function CataloguePage() {
   const search = useApiResource<ActivitySearchData>(
     searching ? API_ROUTES.activitySearch : null,
     { q: browse.query, section: browse.section || undefined },
+    '', {}, true,
   )
-  const searchCurrent = currentFor(search.result, database)
+  const searchCurrent = search.result
   const searchBody =
     searchCurrent !== null && searchCurrent.state === 'success' ? searchCurrent.body : null
 
@@ -270,7 +267,7 @@ export default function CataloguePage() {
       <Panel
         title={searching ? <>Results for “{browse.query}”</> : 'Catalogue'}
         badge={
-          searching && searchBody !== null && !search.isLoading ? (
+          searching && searchBody !== null ? (
             <StatusBadge tone="neutral">
               {searchBody.items.length} {searchBody.items.length === 1 ? 'match' : 'matches'}
             </StatusBadge>
@@ -331,7 +328,6 @@ export default function CataloguePage() {
         {searching ? (
           <SearchResults
             current={searchCurrent}
-            isLoading={search.isLoading}
             query={browse.query}
             section={browse.section}
           />
@@ -339,7 +335,7 @@ export default function CataloguePage() {
           <TreeLevel parentCode={null} />
         )}
 
-        {searching && searchBody !== null && !search.isLoading && searchBody.items.length > 0 && (
+        {searching && searchBody !== null && searchBody.items.length > 0 && (
           <PanelFooter>
             <PanelNotes>
               <p>

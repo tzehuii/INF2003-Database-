@@ -1,6 +1,8 @@
-// OWNER: Tzehui - Full-industry map index, independent scrolling results and mouse zoom.
+// Full-industry map index, independent scrolling results and mouse zoom.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import CompanyLink from '../components/CompanyLink'
+import { useVisitState } from '../visitState'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { API_ROUTES, apiRequest, isLiveData } from '../api/client'
@@ -15,7 +17,7 @@ type Location = { status: string; reason?: string; latitude?: number; longitude?
 type Entry = { company: Company; location: Location }
 type Job = { id: string; db: string; industry: string; state: string; total: number; checked: number; matched: number; unavailable: number; pending: number; progress_percent: number; eta_seconds: number | null; updated: number; message: string }
 type Marker = { key: string; latitude: number; longitude: number; count: number; uen: string | null; name: string | null }
-type View = Bounds & { zoom: number }
+type View = Bounds & { zoom: number; center?: { lat: number; lng: number } }
 type Page = { items: Entry[]; total: number; counts: Record<'all'|'mapped'|'unmapped',number>; has_more: boolean }
 type Focus = { lat: number; lng: number; sequence: number }
 const areaQuery = (bounds: Bounds | null) => bounds ? `${bounds.south},${bounds.north},${bounds.west},${bounds.east}` : ''
@@ -26,21 +28,23 @@ function remainingTime(seconds: number) {
   return high>=120 ? `Roughly ${(low/60).toFixed(1)}–${(high/60).toFixed(1)} hours remaining` : `Roughly ${low}–${high} min remaining`
 }
 // Markers come from the complete server index, independently of list pagination.
-function OverviewMap({ markers, onView, onArea, resetView, focus }: { markers: Marker[]; onView: (view: View) => void; onArea: (area: Bounds) => void; resetView: number; focus: Focus | null }) {
+function OverviewMap({ markers, onView, onArea, onCompany, initialView, resetView, focus }: { markers: Marker[]; onView: (view: View) => void; onArea: (area: Bounds) => void; onCompany: (uen: string) => void; initialView: View | null; resetView: number; focus: Focus | null }) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const layer = useRef<L.LayerGroup | null>(null)
   const rendered = useRef(new Map<string, L.Marker>())
   const highlight = useRef<L.CircleMarker | null>(null)
   const latestArea = useRef(onArea); latestArea.current = onArea
+  const latestCompany = useRef(onCompany); latestCompany.current = onCompany
   useEffect(() => {
     if (!container.current) return
-    const instance = L.map(container.current, { scrollWheelZoom: true }).setView([1.3521, 103.8198], 11)
+    const center: L.LatLngExpression = initialView ? [initialView.center?.lat ?? (initialView.south + initialView.north)/2, initialView.center?.lng ?? (initialView.west + initialView.east)/2] : [1.3521, 103.8198]
+    const instance = L.map(container.current, { scrollWheelZoom: true }).setView(center, initialView?.zoom ?? 11)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19 }).addTo(instance)
     map.current = instance; layer.current = L.layerGroup().addTo(instance)
     const moved = () => {
       const b = instance.getBounds()
-      onView({ south: Math.max(-90,b.getSouth()), north: Math.min(90,b.getNorth()), west: Math.max(-180,b.getWest()), east: Math.min(180,b.getEast()), zoom: instance.getZoom() })
+      onView({ south: Math.max(-90,b.getSouth()), north: Math.min(90,b.getNorth()), west: Math.max(-180,b.getWest()), east: Math.min(180,b.getEast()), zoom: instance.getZoom(), center: { lat: instance.getCenter().lat, lng: instance.getCenter().lng } })
     }
     instance.on('moveend', moved)
     const observer = new ResizeObserver(() => instance.invalidateSize({ pan: false }))
@@ -61,7 +65,10 @@ function OverviewMap({ markers, onView, onArea, resetView, focus }: { markers: M
       else {
         const popup = document.createElement('div')
         if (point.uen) {
-          const link = document.createElement('a'); link.href = `/companies/${encodeURIComponent(point.uen)}`; link.textContent = point.name ?? point.uen; popup.append(link)
+          const link = document.createElement('a'); link.href = `/companies/${encodeURIComponent(point.uen)}`; link.textContent = point.name ?? point.uen
+          // Preserve React browse state for normal clicks; modifier clicks still open a new tab.
+          link.onclick = event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) { event.preventDefault(); latestCompany.current(point.uen!) } }
+          popup.append(link)
         } else {
           const text = document.createElement('p'); text.textContent = `${point.count} active companies at nearby or shared addresses.`; popup.append(text)
           const button = document.createElement('button'); button.className = 'button button-primary'; button.textContent = 'View companies here'
@@ -86,28 +93,35 @@ function OverviewMap({ markers, onView, onArea, resetView, focus }: { markers: M
 }
 export default function CompanyMapPage() {
   const { database } = useDatabase()
-  const [controlsOpen,setControlsOpen] = useState(true)
-  const [followMap,setFollowMap] = useState(true)
-  const [draftIndustry,setDraftIndustry] = useState('')
-  const [draftSubcategory,setDraftSubcategory] = useState('')
-  const [industry,setIndustry] = useState<string | null>(null)
-  const [job,setJob] = useState<Job | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [controlsOpen,setControlsOpen] = useVisitState('map:controlsOpen', true)
+  const [followMap,setFollowMap] = useVisitState('map:followMap', true)
+  const [draftIndustry,setDraftIndustry] = useVisitState('map:draftIndustry', '')
+  const [draftSubcategory,setDraftSubcategory] = useVisitState('map:draftSubcategory', '')
+  const [industry,setIndustry] = useVisitState<string | null>('map:industry', null)
+  const [job,setJob] = useVisitState<Job | null>('map:job', null)
   const [revision,setRevision] = useState(0)
   const [refresh,setRefresh] = useState(false)
   const [error,setError] = useState('')
   const [starting,setStarting] = useState(false)
-  const [view,setView] = useState<View | null>(null)
-  const [area,setArea] = useState<Bounds | null>(null)
-  const [mode,setMode] = useState<'all'|'mapped'|'unmapped'>('all')
-  const [entries,setEntries] = useState<Entry[]>([])
-  const [counts,setCounts] = useState<Record<'all'|'mapped'|'unmapped',number>>({all:0,mapped:0,unmapped:0})
-  const [hasMore,setHasMore] = useState(false)
-  const [offset,setOffset] = useState(0)
+  const [view,setView] = useVisitState<View | null>('map:view', null)
+  const [area,setArea] = useVisitState<Bounds | null>('map:area', null)
+  const [mode,setMode] = useVisitState<'all'|'mapped'|'unmapped'>('map:mode', 'all')
+  const [entries,setEntries] = useVisitState<Entry[]>('map:entries', [])
+  const [counts,setCounts] = useVisitState<Record<'all'|'mapped'|'unmapped',number>>('map:counts', {all:0,mapped:0,unmapped:0})
+  const [hasMore,setHasMore] = useVisitState('map:hasMore', false)
+  const [offset,setOffset] = useVisitState('map:offset', 0)
   const [listLoading,setListLoading] = useState(false)
-  const [markers,setMarkers] = useState<Marker[]>([])
+  const [markers,setMarkers] = useVisitState<Marker[]>('map:markers', [])
   const [resetView,setResetView] = useState(0)
   const [focus,setFocus] = useState<Focus | null>(null)
+  const [listScroll,setListScroll] = useVisitState('map:listScroll', 0)
+  const initialCamera = useRef(view)
+  const initialListScroll = useRef(listScroll)
   const list = useRef<HTMLDivElement>(null)
+  const previousSelection = useRef({ id: job?.id, mode, area: areaQuery(area) })
+  useEffect(() => { if (list.current) list.current.scrollTop = initialListScroll.current }, [])
   const busyMore = useRef(false)
   const industries = useApiResource<IndustriesData>(API_ROUTES.industries, {}, '', {}, true)
   const subcategories = useApiResource<IndustriesData>(API_ROUTES.industries, {parent_code:draftIndustry || undefined,descendants:true}, '', {}, true)
@@ -129,7 +143,7 @@ export default function CompanyMapPage() {
       if (cancelled) return
       setStarting(false)
       if (!isLiveData(result)) { setError(result.message);setControlsOpen(true); return }
-      setJob(result.body); setOffset(0)
+      setJob(result.body); if (job?.id !== result.body.id) setOffset(0)
       void poll(result.body.id)
     })
     return () => { cancelled=true; controller.abort(); window.clearTimeout(timer) }
@@ -160,7 +174,15 @@ export default function CompanyMapPage() {
     void fetchPages()
     return () => { cancelled=true;controller.abort() }
   }, [database,job?.id,sourceReady,mode,area,offset,progress])
-  useEffect(() => { setOffset(0); busyMore.current=false; if(list.current) list.current.scrollTop=0 }, [job?.id,mode,area])
+  useEffect(() => {
+    const next = { id: job?.id, mode, area: areaQuery(area) }
+    const previous = previousSelection.current
+    if (next.id !== previous.id || next.mode !== previous.mode || next.area !== previous.area) {
+      setOffset(0); busyMore.current=false; setListScroll(0)
+      if (list.current) list.current.scrollTop=0
+    }
+    previousSelection.current = next
+  }, [job?.id,mode,area,setOffset,setListScroll])
   useEffect(() => {
     if (!job || !view || !currentJob) return
     const controller = new AbortController(); let cancelled=false
@@ -188,14 +210,14 @@ export default function CompanyMapPage() {
   const search = (force=false) => { setControlsOpen(false);setRefresh(force);setIndustry(draftSubcategory || draftIndustry);setRevision(value=>value+1);setArea(null);setMode('all');setResetView(value=>value+1) }
   return <div className="company-map-page">
     <PageHeading icon="globe" title="Company Map" description="Search every active company in an industry and explore its confirmed registered locations." />
-    {/* OWNER: Tzehui - Always-visible notice between the introduction and the map workspace. */}
+    {/* Always-visible notice between the introduction and the map workspace. */}
     <aside className="company-map-intro-notice" role="note" aria-label="Map accuracy notice">
       <span className="company-map-notice-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg></span>
       <p><strong>Map accuracy notice.</strong> Singapore introduced six-digit postal codes in September 1995; older four-digit codes may be valid historical data. Maps use available address information on a best-effort basis, so old, incomplete or changed addresses may be approximate or unavailable. Original records are preserved. <a href="https://philately.singpost.com/en/explore-stamps/postal-code" target="_blank" rel="noopener noreferrer">Postal-code history — SingPost ↗</a></p>
     </aside>
     <Panel className="company-map-panel">
       <div className="company-map-top-controls">
-      {/* OWNER: Tzehui - Selection and progress live above the map, leaving the side panel for results. */}
+      {/* Selection and progress live above the map, leaving the side panel for results. */}
       <div className="company-map-controls-toggle"><button type="button" aria-expanded={controlsOpen} aria-controls="map-browse-controls" onClick={()=>setControlsOpen(value=>!value)}><span>{controlsOpen?'Hide filters & controls':'Show filters & controls'}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d={controlsOpen?'m6 15 6-6 6 6':'m6 9 6 6 6-6'} /></svg></button>{!controlsOpen && <span className="company-map-selection-label">{industry?`Industry ${industry}`:'All industries'}{area?' · Selected map area':''}</span>}</div>
       <section id="map-browse-controls" className="company-map-browse-controls" hidden={!controlsOpen} aria-label="Industry and map controls">
       <form className="toolbar company-map-toolbar" onSubmit={event=>{event.preventDefault();search()}}><h3 className="company-map-section-title">Industry</h3>
@@ -218,14 +240,14 @@ export default function CompanyMapPage() {
 
 
       </div>
-      <div className="company-map-layout company-map-workspace"><div className="company-map-visual"><OverviewMap markers={markers} onView={setView} onArea={selectArea} resetView={resetView} focus={focus} /></div><aside className="company-map-side" aria-label="Map filters and company results">
+      <div className="company-map-layout company-map-workspace"><div className="company-map-visual"><OverviewMap markers={markers} onView={setView} onArea={selectArea} onCompany={uen=>navigate(`/companies/${encodeURIComponent(uen)}`, {state:{companyOrigin:{path:location.pathname,key:location.key}}})} initialView={initialCamera.current} resetView={resetView} focus={focus} /></div><aside className="company-map-side" aria-label="Map filters and company results">
         <section className="company-map-results" aria-label="Company results"><h3 className="company-map-section-title">Results</h3><div className="company-map-tabs" role="group" aria-label="Company location lists"><button type="button" className="button button-secondary" aria-pressed={mode==='all'} onClick={()=>setMode('all')}>{area?'Selected area':'All'} ({counts.all})</button><button type="button" className="button button-secondary" aria-pressed={mode==='mapped'} onClick={()=>setMode('mapped')}>Mapped ({counts.mapped})</button><button type="button" className="button button-secondary" aria-pressed={mode==='unmapped'} onClick={()=>setMode('unmapped')}>Unmapped ({counts.unmapped})</button></div>
 
-        <div ref={list} className="company-map-list" role="region" tabIndex={0} aria-label="Active company map results" onScroll={event=>{const element=event.currentTarget;if(element.scrollHeight-element.scrollTop-element.clientHeight<120)loadMore()}}>
+        <div ref={list} className="company-map-list" role="region" tabIndex={0} aria-label="Active company map results" onScroll={event=>{const element=event.currentTarget;setListScroll(element.scrollTop);if(element.scrollHeight-element.scrollTop-element.clientHeight<120)loadMore()}}>
           {mode==='unmapped' && <p className="company-map-list-note">Addresses that could not be confirmed. Companies still awaiting a check remain in All companies.</p>}
           {!entries.length && <p className="company-map-list-note">{starting||job?.state==='preparing'||listLoading?'Preparing company results…':job?'No companies match this selection.':'Search an industry to view its companies and map.'}</p>}
           {entries.map(({company,location})=>{const address=company.addresses[0];const text=address?addressMapQuery(address):null;return <article className="company-map-card" key={company.uen}>
-            <Link className="row-link" to={`/companies/${encodeURIComponent(company.uen)}`}>{company.name??company.uen}</Link><div className="company-map-card-meta"><span>{company.uen}</span><RegistryStatusBadge status={company.status} /></div><p>{company.primary_activity?`${company.primary_activity.code} - ${company.primary_activity.title??'No title'}`:'Primary activity not recorded'}</p><p>{text??'No complete address recorded.'}</p><p className={location.status==='matched'?'map-location-matched':'muted-text'}>{location.status==='matched'?location.approximate ? location.reason ?? `Approximate address location from ${location.source}.` : `Address matched by ${location.source}.`:location.reason}</p>
+            <CompanyLink uen={company.uen}>{company.name??company.uen}</CompanyLink><div className="company-map-card-meta"><span>{company.uen}</span><RegistryStatusBadge status={company.status} /></div><p>{company.primary_activity?`${company.primary_activity.code} - ${company.primary_activity.title??'No title'}`:'Primary activity not recorded'}</p><p>{text??'No complete address recorded.'}</p><p className={location.status==='matched'?'map-location-matched':'muted-text'}>{location.status==='matched'?location.approximate ? location.reason ?? `Approximate address location from ${location.source}.` : `Address matched by ${location.source}.`:location.reason}</p>
             <div className="company-actions">{location.status==='matched'&&location.latitude!=null&&location.longitude!=null&&<button type="button" className="button button-secondary" onClick={()=>setFocus({lat:location.latitude!,lng:location.longitude!,sequence:Date.now()})}>Locate on map</button>}{text&&<a href={`https://www.google.com/maps/search/?${new URLSearchParams({api:'1',query:text})}`} target="_blank" rel="noopener noreferrer">Open address search ↗</a>}</div>
           </article>})}
           <div className="company-map-list-note">{listLoading?'Loading company results…':hasMore?<button className="button button-secondary" onClick={loadMore}>Load more companies</button>:job&&sourceReady?'End of this company list.':''}</div>

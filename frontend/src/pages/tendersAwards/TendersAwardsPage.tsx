@@ -49,7 +49,7 @@ function ListHeading({ actions }: { actions?: ReactNode }) {
   </>
 }
 
-// Keep the previous rows visible (but inactive) while a new page or database loads.
+// retain rows and paging during switches; old database actions stay disabled until refreshed.
 function useStableResults<T>(resource: ApiResource<ResultPage<T>>) {
   const { database } = useDatabase()
   const previous = useRef<ResultPage<T> | null>(null)
@@ -97,7 +97,7 @@ export function TendersListPage() {
   const { database } = useDatabase()
   const navigate = useNavigate()
   const { tenders: list } = useSectionState()
-  const resource = useApiResource<ResultPage<Tender>>(API.tenders, { ...list.applied, page: list.page, limit: PAGE_SIZE })
+  const resource = useApiResource<ResultPage<Tender>>(API.tenders, { ...list.applied, page: list.page, limit: PAGE_SIZE }, '', {}, true)
   const { data, refreshing, failure } = useStableResults<Tender>(resource)
   const form = useFilterForm<TenderFilters>(list, emptyTenderFilters, resource.reload)
   const set = (key: keyof TenderFilters) => (value: string) => form.setFilters(f => ({ ...f, [key]: value }))
@@ -142,7 +142,7 @@ export function AwardsListPage() {
   const { database } = useDatabase()
   const navigate = useNavigate()
   const { awards: list } = useSectionState()
-  const resource = useApiResource<ResultPage<AwardRow>>(API.awards, { ...list.applied, page: list.page, limit: PAGE_SIZE })
+  const resource = useApiResource<ResultPage<AwardRow>>(API.awards, { ...list.applied, page: list.page, limit: PAGE_SIZE }, '', {}, true)
   const { data, refreshing, failure } = useStableResults<AwardRow>(resource)
   const form = useFilterForm<AwardFilters>(list, emptyAwardFilters, resource.reload)
   const set = (key: keyof AwardFilters) => (value: string) => form.setFilters(f => ({ ...f, [key]: value }))

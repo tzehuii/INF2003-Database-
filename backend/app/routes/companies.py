@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Company and Address Management (System view)
+# Company and Address Management (System view)
 # Company/address CRUD, company search and combined filters for MariaDB and MongoDB.
 
 # Features this file covers:

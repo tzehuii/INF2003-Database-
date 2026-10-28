@@ -1,4 +1,4 @@
-# OWNER: Tzehui - Stream every active source company without public-directory pagination.
+# Stream every active source company without public-directory pagination.
 from .api import catalogue, industry_descendants
 from .companies import store, ADDRESS_FIELDS
 from ..system.company_map_index import ACTIVE
