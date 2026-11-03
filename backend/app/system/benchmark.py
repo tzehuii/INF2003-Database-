@@ -336,7 +336,7 @@ class IndustryTotals(Workload):
     label = "Award totals per industry section"
     description = ("Total awarded amount per SSIC section (A, B, C ...) for awards whose supplier is linked to one "
                    "company. Crosses awards, suppliers, companies and the industry tree.")
-    mariadb_method = "1 query joining 9 tables (award, supplier link, company industry, 5 levels of the SSIC tree)"
+    mariadb_method = "1 query, 8 joins over 4 tables: award, supplier link, company industry, then BusinessActivity once per SSIC level (5)"
     mongodb_method = "4 batched finds (tenders, suppliers, companies, industries) merged in Python, as the Industry Awards page does"
 
     QUERY = """
