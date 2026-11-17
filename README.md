@@ -1,6 +1,6 @@
-<h1 align="center">Business and Tender Analytics</h1>
+<h1 align="left">Business and Tender Analytics</h1>
 
-<p align="center"><strong>BTA · INF2003 Database Systems Project</strong></p>
+<p align="left"><strong>BTA · INF2003 Database Systems Project</strong></p>
 
 <p align="justify">Business and Tender Analytics is a web application that connects Singapore company registration information with government procurement data. It provides a common interface for exploring companies, their registered addresses and business activities, and their relationships with suppliers and tender awards. The application combines public browsing and analysis with authenticated record management and database comparison tools.</p>
 
