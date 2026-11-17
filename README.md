@@ -1,6 +1,6 @@
-# BTA: Business and Tender Analytics
+<h1 align="center">Business and Tender Analytics</h1>
 
-<p align="center"><strong>INF2003 Database Systems · MariaDB and MongoDB implementation</strong></p>
+<p align="center"><strong>BTA · INF2003 Database Systems Project</strong></p>
 
 <p align="justify">Business and Tender Analytics is a web application that connects Singapore company registration information with government procurement data. It provides a common interface for exploring companies, their registered addresses and business activities, and their relationships with suppliers and tender awards. The application combines public browsing and analysis with authenticated record management and database comparison tools.</p>
 
@@ -68,18 +68,31 @@ Browser: React + Vite + TypeScript
 ### Repository structure
 
 ```text
-backend/
-  app/                 FastAPI application, routes and database-specific logic
-  scripts/             Company-map preparation utilities
-  tests/               Backend unit and API integration tests
-docs/                  Feature documentation and regression notes
-frontend/
-  src/                 React application
-  tests/               Frontend regression tests
-scripts/               Database maintenance utilities
-sql/                   MariaDB schema and migrations
-.env.example           Configuration template without real credentials
-requirements.txt       Python dependencies
+INF2003-Database-/
+├── backend/
+│   ├── app/
+│   │   ├── routes/          # API endpoints and authentication
+│   │   ├── system/          # Database-specific operations and diagnostics
+│   │   ├── config.py        # Environment configuration
+│   │   ├── databases.py     # Database connections
+│   │   └── main.py          # FastAPI application entry point
+│   ├── scripts/             # Optional map utilities
+│   └── tests/               # Backend unit and API integration tests
+├── frontend/
+│   ├── src/                 # React pages, components and application state
+│   ├── tests/               # Frontend regression tests
+│   ├── package.json         # Frontend dependencies and scripts
+│   └── vite.config.ts       # Development server and API proxy
+├── docs/
+│   ├── images/              # README screenshots
+│   ├── testing/             # Regression check documentation
+│   └── company-map.md       # Mapping implementation and usage guide
+├── scripts/                 # Database maintenance utilities
+├── sql/                     # MariaDB schema and migrations
+├── .env.example             # Local configuration template
+├── .gitignore               # Files excluded from version control
+├── requirements.txt         # Python dependencies
+└── README.md                # Project documentation and setup guide
 ```
 
 <p align="justify">The backend's routes expose the HTTP interface, while its database-specific logic implements the corresponding operations for MariaDB and MongoDB. The frontend consumes those endpoints and manages navigation, filters and selected-database state. SQL files support relational schema creation and upgrades; the documentation and test folders describe and verify application behaviour.</p>
@@ -92,6 +105,12 @@ requirements.txt       Python dependencies
 
 ### Public view
 
+<p align="justify">The Public view provides the main company directory and analysis features. The example below shows company search, industry and status filters, and the results table alongside the public navigation.</p>
+
+![Public view — company directory and search filters](docs/images/public-view.jpg)
+
+<p align="center"><em>Public view: company browsing and filtering.</em></p>
+
 | Module | Features |
 | :---: | :---: |
 | Public — Companies | Search by UEN or current/former company name; filter by registry status, primary industry and linked awards; sort records and select the page size or page number. |
@@ -101,6 +120,12 @@ requirements.txt       Python dependencies
 | Public — Award analysis | Explore agency and industry award analysis, including aggregated supplier awards and industry classifications. |
 
 ### System view
+
+<p align="justify">The System view brings administrative modules and database diagnostics into a separate workspace. This example shows the SSIC catalogue, with access to company/address, supplier and tender management through the sidebar.</p>
+
+![System view — business activity catalogue and administration navigation](docs/images/system-view.jpg)
+
+<p align="center"><em>System view: business activity management and administrator navigation.</em></p>
 
 | Module | Features |
 | :---: | :---: |
@@ -132,7 +157,7 @@ requirements.txt       Python dependencies
 
 <p align="justify">Complete the steps in order for a new installation. If dependencies and datasets are already present, retain your local configuration, apply only any required migration, and continue to <a href="#6-running-and-using-the-application">Running and using the application</a>.</p>
 
-### 1. Install application dependencies
+### 5.1 Install application dependencies
 
 <p align="justify">Open PowerShell in the cloned project folder:</p>
 
@@ -144,7 +169,7 @@ npm.cmd --prefix frontend ci
 
 <p align="justify">The commands use the virtual environment's Python directly, so activating the environment is optional. <code>npm.cmd</code> also avoids PowerShell execution-policy errors associated with <code>npm.ps1</code>.</p>
 
-### 2. Configure the environment
+### 5.2 Configure the environment
 
 <p align="justify">Create the local configuration only if it does not already exist:</p>
 
@@ -173,7 +198,7 @@ MONGODB_DB_NAME=inf2003_mongodb
 
 <p align="justify">Keep real credentials in local configuration. Do not commit <code>.env</code> or add credentials to screenshots or reports. Optional mapping credentials are described in <a href="#7-company-mapping-and-onemap">Company mapping and OneMap</a>.</p>
 
-### 3. Restore the project datasets
+### 5.3 Restore the project datasets
 
 <p align="justify"><strong>Skip this step if your databases already contain the current project data.</strong> Start both database services before importing or running the application.</p>
 
@@ -226,34 +251,15 @@ mariadb --host=127.0.0.1 --port=3306 --user=root --password --execute="source sq
 npm.cmd --prefix frontend run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-| Address | Purpose |
-| :---: | :---: |
-| <http://127.0.0.1:5173> | Web application |
-| <http://127.0.0.1:8000/docs> | FastAPI interactive API documentation |
-| <http://127.0.0.1:8000/health> | Backend and database connectivity check |
+<p align="justify">Open <a href="http://127.0.0.1:5173"><strong>http://127.0.0.1:5173</strong></a> in your browser to use the application.</p>
 
 <p align="justify">The frontend development server forwards <code>/api</code> requests to port <code>8000</code> through <code>frontend/vite.config.ts</code>. If you change the backend port, update that proxy target as well.</p>
 
 <p align="justify">To stop the application, press <strong>Ctrl+C in each application terminal</strong>. This stops the frontend and backend processes; database services remain running separately.</p>
 
-### Administrator sign-in
+### Administrator access
 
-<p align="justify">Select <strong>System</strong> and sign in with the local demonstration account:</p>
-
-```text
-Username: admin01
-Password: INF2003Admin
-```
-
-<p align="justify">Protected backend routes also check authentication; opening a System API URL without an authenticated request is rejected. Sessions are held in backend memory, so restarting the backend requires signing in again.</p>
-
-### Verify connectivity
-
-```powershell
-Invoke-RestMethod -Uri http://127.0.0.1:8000/health
-```
-
-<p align="justify">A successful health response confirms connectivity. It does not establish that all datasets have been imported or that their contents match. Use the System view's data consistency checks for those comparisons.</p>
+<p align="justify">Select <strong>System</strong> to access the administrator sign-in screen. Use the administrator account configured for the project. Authentication is enforced by the backend as well as the interface, so protected API requests require a valid session. Restarting the backend clears its in-memory sessions and requires signing in again.</p>
 
 ### Suggested application walkthrough
 
@@ -281,23 +287,11 @@ ONEMAP_ACCESS_TOKEN=
 
 <p align="justify">Use your OneMap account email and password to allow token renewal, or supply an access token. A non-empty <code>ONEMAP_ACCESS_TOKEN</code> takes precedence and must be replaced when it expires. Keep these credentials on the backend and restart it after changing the environment configuration.</p>
 
-### Progress, caching and preparation
+### Location progress and cached results
 
 <p align="justify">The map shows source-loading and location-check progress, with separate mapped, unmapped and pending states. Confirmed locations are cached for later searches. Historical, incomplete or ambiguous addresses are preserved rather than silently rewritten or assigned an unsupported pin. An active registration status does not establish that a company currently operates at its registered address.</p>
 
-<p align="justify">To prepare an industry before a demonstration, run this in another terminal while the backend is available on port <code>8000</code>:</p>
-
-```powershell
-.\.venv\Scripts\python.exe -m backend.scripts.prepare_company_maps --industry Q --database both
-```
-
-<p align="justify">To prepare all industries:</p>
-
-```powershell
-.\.venv\Scripts\python.exe -m backend.scripts.prepare_company_maps --all-industries --database both
-```
-
-<p align="justify">Preparing all industries can take substantial time and is not required for ordinary startup. Results are cached locally rather than committed to Git. After changing company/address records, use <strong>Refresh source data</strong> to update the affected map snapshot; the map is not automatically refreshed after every source edit.</p>
+<p align="justify">Confirmed results are cached locally for subsequent searches. After changing company or address records, use <strong>Refresh source data</strong> for the affected industry and database to update the map snapshot. Cached results are derived from the source records and are not automatically refreshed after every edit.</p>
 
 <p align="justify">See <a href="docs/company-map.md">Company map documentation</a> for matching rules, map-area filtering, caching, preparation and troubleshooting.</p>
 
@@ -343,7 +337,7 @@ npm.cmd --prefix frontend run build
 
 ## 9. Deployment considerations and limitations
 
-<p align="justify">This setup is intended for local project development and demonstration. The demonstration administrator credentials and in-memory sessions should be replaced with an appropriate authentication and session-management approach before production deployment.</p>
+<p align="justify">This setup is intended for local project development and demonstration. Before production deployment, review administrator account configuration and replace in-memory sessions with an appropriate persistent session-management approach.</p>
 
 <p align="justify">MariaDB transactions support committing or rolling back related writes together. MongoDB updates are atomic within a document, but operations spanning several documents are not covered by a multi-document transaction in the current standalone deployment. Application reference checks help maintain relationships, but do not provide the same guarantees as relational foreign keys or a transaction spanning all affected documents.</p>
 
@@ -355,7 +349,7 @@ npm.cmd --prefix frontend run build
 
 | Issue | Check / action |
 | :---: | :---: |
-| Database could not be reached | Confirm that the selected database service is running and that the host, port, credentials and fixed database name in the backend configuration are correct. Check `/health`. |
+| Database could not be reached | Confirm that the selected database service is running and that the host, port, credentials and fixed database name in the backend configuration are correct. Restart the backend after changing its environment configuration. |
 | Missing-setting error during backend startup | Supply all required MariaDB and MongoDB settings. Check process environment variables too, because they override `.env`. |
 | Unknown collation `utf8mb4_uca1400_ai_ci` | Check the actual database server and version connected to by the import command. Use the supported MariaDB server/port; a MySQL instance or older MariaDB server may reject this collation. |
 | Table already exists during schema import | The full schema is intended for a fresh setup. Use the relevant migration for an existing installation rather than rerunning table creation. |
@@ -381,4 +375,11 @@ npm.cmd --prefix frontend run build
 | [MariaDB schema](sql/INF2003_Grp1_database_schema_mariadb.sql) | Relational table definitions, constraints and indexes |
 | [Bookmark timestamp migration](sql/20261016_saved_company_timestamps.sql) | Upgrade for older MariaDB saved-company entries |
 
-<p align="justify">For endpoint request and response schemas, start the backend and open its <a href="http://127.0.0.1:8000/docs">interactive API documentation</a>. For connection, import or startup errors, use <a href="#10-troubleshooting">Troubleshooting</a>.</p>
+<p align="justify">For connection, import or startup errors, use <a href="#10-troubleshooting">Troubleshooting</a>.</p>
+
+<details>
+<summary><strong>Optional backend developer endpoints</strong></summary>
+
+<p align="justify">The backend also provides <a href="http://127.0.0.1:8000/docs">/docs</a>, generated by FastAPI for inspecting endpoint schemas, and <a href="http://127.0.0.1:8000/health">/health</a>, implemented by the project to report database reachability. These are developer utilities available while the backend is running, rather than pages in the application's navigation. A connectivity result does not verify dataset completeness or matching content.</p>
+
+</details>
