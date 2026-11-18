@@ -1,6 +1,6 @@
 <h1 align="left">Business and Tender Analytics</h1>
 
-<p align="left"><strong>BTA · INF2003 Database Systems Project</strong></p>
+<p align="left"><strong>BTA · INF2003 Database Systems Project · Lab P3 · Group 1</strong></p>
 
 <p align="justify">Business and Tender Analytics is a web application that connects Singapore company registration information with government procurement data. It provides a common interface for exploring companies, their registered addresses and business activities, and their relationships with suppliers and tender awards. The application combines public browsing and analysis with authenticated record management and database comparison tools.</p>
 
@@ -23,6 +23,16 @@
 <p align="justify"><strong>Already set up?</strong> Go to <a href="#6-running-and-using-the-application">Running and using the application</a>. For a new installation, follow <a href="#4-software-requirements">Software requirements</a> and <a href="#5-installation-and-database-setup">Installation and database setup</a> first.</p>
 
 ## 1. Project overview
+
+### Team members
+
+| Name | Student ID |
+| :---: | :---: |
+| Teng Tze Hui | 2502437 |
+| Yap Yi Hui Wynn | 2501386 |
+| Low Yi Hang Nicholas | 2500831 |
+| Cheng Zhi Hong | 2500847 |
+| Ee Chew Fong Olivia | 2102743 |
 
 ### Purpose and scope
 
@@ -259,7 +269,13 @@ npm.cmd --prefix frontend run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 ### Administrator access
 
-<p align="justify">Select <strong>System</strong> to access the administrator sign-in screen. Use the administrator account configured for the project. Authentication is enforced by the backend as well as the interface, so protected API requests require a valid session. Restarting the backend clears its in-memory sessions and requires signing in again.</p>
+<p align="justify">Select <strong>System</strong> and use the project's local demonstration account:</p>
+
+| Administrator ID | Password |
+| :---: | :---: |
+| `admin01` | `INF2003Admin` |
+
+<p align="justify">Authentication is enforced by the backend as well as the interface, so protected API requests require a valid session. Restarting the backend clears its in-memory sessions and requires signing in again.</p>
 
 ### Suggested application walkthrough
 
